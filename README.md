@@ -6,11 +6,13 @@ Map custom pseudo-URLs to your localhost development servers with ease! Never ty
 
 - 🚀 Map custom domains (like `myapp.local`) to localhost ports
 - 🔄 Built-in proxy server to route requests
+- 🔒 HTTPS support with automatic SSL certificate generation (via mkcert)
 - 📝 Automatic hosts file management
 - 💻 Simple CLI interface
 - 🎯 Works with any local development server
 - ⚡ Run serverless architectures locally with proper domain routing
 - 🛠️ Easy configuration management
+- ✅ Enable Chrome's HTTP-only features (geolocation, camera, service workers, etc.)
 
 ## Installation
 
@@ -20,25 +22,35 @@ npm install -g pseudo-url-localhost
 
 ## Quick Start
 
-1. **Add a mapping** (map a domain to a port):
+1. **Install mkcert** (for HTTPS support - optional but recommended):
+
+```bash
+# macOS
+brew install mkcert
+mkcert -install
+
+# Linux
+# See: https://github.com/FiloSottile/mkcert#installation
+# or run: pseudo-url cert-install
+
+# Windows
+choco install mkcert
+mkcert -install
+```
+
+2. **Add a mapping** (map a domain to a port):
 
 ```bash
 pseudo-url add myapp.local 3000
 ```
 
-2. **Sync the hosts file** (requires sudo):
-
-```bash
-sudo pseudo-url sync
-```
-
-3. **Start the proxy server** (requires sudo for port 80):
+3. **Start the proxy server** (requires sudo for ports 80/443):
 
 ```bash
 sudo pseudo-url start
 ```
 
-4. **Access your app** at `http://myapp.local`
+4. **Access your app** at `https://myapp.local` (or `http://myapp.local`)
 
 ## Usage
 
@@ -129,15 +141,91 @@ Check current configuration and status:
 pseudo-url status
 ```
 
+### HTTPS / SSL Certificate Management
+
+#### Check Certificate Status
+
+View mkcert installation and certificate status:
+
+```bash
+pseudo-url cert-status
+```
+
+#### Install mkcert
+
+Get installation instructions for mkcert:
+
+```bash
+pseudo-url cert-install
+```
+
+#### Regenerate Certificates
+
+Manually regenerate SSL certificates for all configured domains:
+
+```bash
+pseudo-url cert-regenerate
+```
+
+**Note**: Certificates are automatically generated when you:
+
+- Add a new domain mapping (with sudo)
+- Start the proxy server
+- Remove a domain mapping (with sudo)
+
+#### Delete Certificates
+
+Remove all generated SSL certificates:
+
+```bash
+pseudo-url cert-delete
+```
+
+#### Disable HTTPS
+
+Start the proxy with HTTP only:
+
+```bash
+sudo pseudo-url start --no-https
+```
+
 ## How It Works
 
-`pseudo-url-localhost` consists of three main components:
+`pseudo-url-localhost` consists of four main components:
 
 1. **Configuration Management**: Stores your domain-to-port mappings in `~/.pseudo-url/config.json`
 
 2. **Hosts File Integration**: Automatically adds entries to your system's hosts file (requires sudo) to map custom domains to `127.0.0.1`
 
-3. **Proxy Server**: Runs a local HTTP proxy that routes requests from your custom domains to the appropriate localhost ports
+3. **SSL Certificate Management**: Uses mkcert to generate locally-trusted SSL certificates for all configured domains, stored in `~/.pseudo-url/certs/`
+
+4. **Proxy Server**: Runs both HTTP (port 80) and HTTPS (port 443) proxies that route requests from your custom domains to the appropriate localhost ports
+
+## HTTPS Support
+
+HTTPS support is automatically enabled when mkcert is installed. This allows you to:
+
+- Use Chrome's HTTP-only features (geolocation, camera, microphone, service workers, etc.)
+- Test HTTPS-specific functionality in your applications
+- Avoid browser security warnings for modern web features
+- Match production environments more closely
+
+### Why mkcert?
+
+[mkcert](https://github.com/FiloSottile/mkcert) is a simple tool for making locally-trusted development certificates. It automatically creates and installs a local Certificate Authority (CA) in your system trust store, so the certificates it generates are trusted by your browser without any manual configuration.
+
+### HTTPS Features Enabled
+
+With HTTPS support, you can now use Chrome features that require a secure context:
+
+- 📍 Geolocation API
+- 📷 Camera & Microphone access (getUserMedia)
+- 🔔 Push Notifications
+- 🔄 Service Workers & Progressive Web Apps (PWAs)
+- 🗄️ Storage APIs (IndexedDB, LocalStorage with some restrictions)
+- 🔐 Crypto API
+- 📡 WebRTC
+- 🌐 HTTP/2 and HTTP/3
 
 ## Example Workflow
 

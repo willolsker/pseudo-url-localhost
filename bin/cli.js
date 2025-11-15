@@ -9,10 +9,24 @@ const {
   getAllMappings,
   clearAllMappings,
   setProxyPort,
-  getProxyPort
+  getProxyPort,
+  getHttpPort,
+  getHttpsPort,
+  isHttpsEnabled
 } = require('../src/config');
 const { updateHostsFile, removeFromHosts, checkPermissions, HOSTS_FILE } = require('../src/hosts');
 const { startProxyServer } = require('../src/proxy');
+const {
+  isMkcertInstalled,
+  getMkcertVersion,
+  isMkcertCAInstalled,
+  installMkcertCA,
+  getMkcertInstallInstructions,
+  generateCertificates,
+  getCertificatePaths,
+  ensureCertificates,
+  deleteCertificates
+} = require('../src/certificates');
 
 program
   .name('pseudo-url')
@@ -103,6 +117,22 @@ program
         const allMappings = getAllMappings();
         updateHostsFile(allMappings);
         console.log(chalk.green('✓ Updated hosts file'));
+        
+        // Regenerate certificates if mkcert is installed
+        if (isMkcertInstalled() && isMkcertCAInstalled()) {
+          try {
+            const domains = Object.keys(allMappings);
+            const certResult = ensureCertificates(domains);
+            
+            if (certResult.success) {
+              console.log(chalk.green('✓ SSL certificates updated'));
+            }
+          } catch (error) {
+            console.log(chalk.yellow('⚠ Warning: Could not update SSL certificates'));
+            console.log(chalk.gray(`  ${error.message}`));
+          }
+        }
+        
         console.log(chalk.cyan(`\nRun ${chalk.bold('pseudo-url start')} to start the proxy server.`));
       }
     } catch (error) {
@@ -153,6 +183,27 @@ program
         const allMappings = getAllMappings();
         updateHostsFile(allMappings);
         console.log(chalk.green('✓ Updated hosts file'));
+        
+        // Regenerate certificates if mkcert is installed
+        if (isMkcertInstalled() && isMkcertCAInstalled()) {
+          try {
+            const domains = Object.keys(allMappings);
+            if (domains.length > 0) {
+              const certResult = ensureCertificates(domains);
+              
+              if (certResult.success) {
+                console.log(chalk.green('✓ SSL certificates updated'));
+              }
+            } else {
+              // No domains left, delete certificates
+              deleteCertificates();
+              console.log(chalk.green('✓ SSL certificates removed'));
+            }
+          } catch (error) {
+            console.log(chalk.yellow('⚠ Warning: Could not update SSL certificates'));
+            console.log(chalk.gray(`  ${error.message}`));
+          }
+        }
       } else {
         console.log(chalk.yellow('\n⚠ Warning: Need elevated permissions to update hosts file.'));
         console.log(chalk.yellow(`Please run: ${chalk.bold('sudo pseudo-url sync')}`));
@@ -241,7 +292,9 @@ program
 program
   .command('start')
   .description('Start the proxy server')
-  .option('-p, --port <port>', 'Port to run proxy on (default: 80)')
+  .option('-p, --port <port>', 'HTTP port to run proxy on (default: 80)')
+  .option('--https-port <port>', 'HTTPS port to run proxy on (default: 443)')
+  .option('--no-https', 'Disable HTTPS')
   .action(async (options) => {
     try {
       const mappings = getAllMappings();
@@ -252,21 +305,54 @@ program
         return;
       }
       
-      const port = options.port ? parseInt(options.port) : getProxyPort();
+      const httpPort = options.port ? parseInt(options.port) : getHttpPort();
+      const httpsPort = options.httpsPort ? parseInt(options.httpsPort) : getHttpsPort();
+      const enableHttps = options.https !== false && isHttpsEnabled();
       
-      if (port < 1024 && process.getuid && process.getuid() !== 0) {
-        console.log(chalk.yellow(`⚠ Warning: Port ${port} requires elevated permissions.`));
+      if (httpPort < 1024 && process.getuid && process.getuid() !== 0) {
+        console.log(chalk.yellow(`⚠ Warning: Port ${httpPort} requires elevated permissions.`));
         console.log(chalk.yellow(`Run: ${chalk.bold(`sudo pseudo-url start`)}`));
         console.log(chalk.cyan(`\nOr use a port >= 1024: ${chalk.bold('pseudo-url start -p 8080')}`));
         process.exit(1);
       }
       
-      if (options.port) {
-        setProxyPort(port);
+      if (httpsPort < 1024 && enableHttps && process.getuid && process.getuid() !== 0) {
+        console.log(chalk.yellow(`⚠ Warning: Port ${httpsPort} requires elevated permissions.`));
+        console.log(chalk.yellow(`Run: ${chalk.bold(`sudo pseudo-url start`)}`));
+        process.exit(1);
       }
       
       console.log(chalk.cyan('Starting pseudo-url proxy server...\n'));
-      await startProxyServer(port);
+      
+      // Check mkcert and certificates if HTTPS is enabled
+      if (enableHttps) {
+        const mkcertInstalled = isMkcertInstalled();
+        
+        if (!mkcertInstalled) {
+          console.log(chalk.yellow('⚠ mkcert is not installed - starting in HTTP-only mode'));
+          console.log(chalk.gray(`  Run ${chalk.bold('pseudo-url cert-install')} for installation instructions\n`));
+        } else {
+          const mkcertCAInstalled = isMkcertCAInstalled();
+          
+          if (!mkcertCAInstalled) {
+            console.log(chalk.yellow('⚠ mkcert CA is not installed - starting in HTTP-only mode'));
+            console.log(chalk.gray(`  Run ${chalk.bold('mkcert -install')} to install the local CA\n`));
+          } else {
+            // Ensure certificates are generated
+            const domains = Object.keys(mappings);
+            const certResult = ensureCertificates(domains);
+            
+            if (certResult.success) {
+              console.log(chalk.green('✓ SSL certificates ready'));
+            } else {
+              console.log(chalk.yellow('⚠ Could not generate certificates - starting in HTTP-only mode'));
+              console.log(chalk.gray(`  ${certResult.message}\n`));
+            }
+          }
+        }
+      }
+      
+      await startProxyServer(httpPort, httpsPort, { enableHttps });
       
       console.log(chalk.cyan('Press Ctrl+C to stop.\n'));
       
@@ -359,12 +445,27 @@ program
   .description('Show current configuration status')
   .action(() => {
     const mappings = getAllMappings();
-    const port = getProxyPort();
+    const httpPort = getHttpPort();
+    const httpsPort = getHttpsPort();
+    const httpsEnabled = isHttpsEnabled();
     const hasPermissions = checkPermissions();
+    const mkcertInstalled = isMkcertInstalled();
+    const mkcertCAInstalled = isMkcertCAInstalled();
+    const certs = getCertificatePaths();
     
     console.log(chalk.bold('\nPseudo-URL Status:\n'));
-    console.log(`  Proxy Port: ${chalk.cyan(port)}`);
+    console.log(`  HTTP Port: ${chalk.cyan(httpPort)}`);
+    console.log(`  HTTPS Port: ${chalk.cyan(httpsPort)}`);
+    console.log(`  HTTPS Enabled: ${httpsEnabled ? chalk.green('✓') : chalk.yellow('✗')}`);
     console.log(`  Hosts Permissions: ${hasPermissions ? chalk.green('✓') : chalk.red('✗')}`);
+    console.log(`  mkcert Installed: ${mkcertInstalled ? chalk.green('✓') : chalk.yellow('✗')}`);
+    if (mkcertInstalled) {
+      console.log(`  mkcert CA Installed: ${mkcertCAInstalled ? chalk.green('✓') : chalk.yellow('✗')}`);
+      console.log(`  Certificates Generated: ${certs ? chalk.green('✓') : chalk.yellow('✗')}`);
+      if (certs) {
+        console.log(`  Certificate Domains: ${chalk.cyan(certs.domains.join(', '))}`);
+      }
+    }
     console.log(`  Mappings: ${chalk.cyan(Object.keys(mappings).length)}\n`);
     
     if (Object.keys(mappings).length > 0) {
@@ -377,6 +478,195 @@ program
     
     if (!hasPermissions) {
       console.log(chalk.yellow('⚠ Run with sudo to modify hosts file'));
+    }
+    
+    if (!mkcertInstalled) {
+      console.log(chalk.yellow('⚠ mkcert not installed - HTTPS will not be available'));
+      console.log(chalk.cyan(`  Run ${chalk.bold('pseudo-url cert-install')} for installation instructions`));
+    } else if (!mkcertCAInstalled) {
+      console.log(chalk.yellow('⚠ mkcert CA not installed - HTTPS will not work'));
+      console.log(chalk.cyan(`  Run ${chalk.bold('mkcert -install')} to install the local CA`));
+    } else if (!certs && Object.keys(mappings).length > 0) {
+      console.log(chalk.yellow('⚠ Certificates not generated'));
+      console.log(chalk.cyan(`  Run ${chalk.bold('pseudo-url cert-regenerate')} to generate certificates`));
+    }
+  });
+
+/**
+ * Certificate status
+ */
+program
+  .command('cert-status')
+  .description('Check mkcert installation and certificate status')
+  .action(() => {
+    console.log(chalk.bold('\nCertificate Status:\n'));
+    
+    const mkcertInstalled = isMkcertInstalled();
+    console.log(`  mkcert Installed: ${mkcertInstalled ? chalk.green('✓') : chalk.red('✗')}`);
+    
+    if (mkcertInstalled) {
+      const version = getMkcertVersion();
+      if (version) {
+        console.log(`  Version: ${chalk.cyan(version)}`);
+      }
+      
+      const caInstalled = isMkcertCAInstalled();
+      console.log(`  Local CA Installed: ${caInstalled ? chalk.green('✓') : chalk.yellow('✗')}`);
+      
+      const certs = getCertificatePaths();
+      console.log(`  Certificates Generated: ${certs ? chalk.green('✓') : chalk.yellow('✗')}`);
+      
+      if (certs) {
+        console.log(`\n  Certificate Files:`);
+        console.log(`    Cert: ${chalk.cyan(certs.cert)}`);
+        console.log(`    Key: ${chalk.cyan(certs.key)}`);
+        console.log(`    Domains: ${chalk.cyan(certs.domains.join(', '))}`);
+      }
+      
+      console.log('');
+      
+      if (!caInstalled) {
+        console.log(chalk.yellow('⚠ Local CA not installed. Run:'));
+        console.log(chalk.cyan('  mkcert -install'));
+        console.log('');
+      } else if (!certs) {
+        const mappings = getAllMappings();
+        if (Object.keys(mappings).length > 0) {
+          console.log(chalk.yellow('⚠ Certificates not generated. Run:'));
+          console.log(chalk.cyan('  pseudo-url cert-regenerate'));
+          console.log('');
+        } else {
+          console.log(chalk.cyan('Add domain mappings first, then certificates will be generated automatically.'));
+          console.log('');
+        }
+      } else {
+        console.log(chalk.green('✓ Everything is configured correctly!'));
+        console.log('');
+      }
+    } else {
+      console.log('');
+      console.log(chalk.yellow('⚠ mkcert is not installed. Run:'));
+      console.log(chalk.cyan('  pseudo-url cert-install'));
+      console.log('');
+    }
+  });
+
+/**
+ * Certificate installation instructions
+ */
+program
+  .command('cert-install')
+  .description('Show mkcert installation instructions')
+  .action(() => {
+    console.log(chalk.bold('\nmkcert Installation:\n'));
+    
+    if (isMkcertInstalled()) {
+      console.log(chalk.green('✓ mkcert is already installed!'));
+      const version = getMkcertVersion();
+      if (version) {
+        console.log(chalk.gray(`  ${version}`));
+      }
+      
+      if (!isMkcertCAInstalled()) {
+        console.log('');
+        console.log(chalk.yellow('However, the local CA is not installed yet.'));
+        console.log(chalk.cyan('\nRun the following command to install the local CA:'));
+        console.log(chalk.bold('  mkcert -install'));
+        console.log('');
+        console.log(chalk.gray('This will add mkcert\'s root certificate to your system trust store.'));
+        console.log(chalk.gray('You may be prompted for your password.'));
+      } else {
+        console.log(chalk.green('✓ Local CA is also installed!'));
+        console.log('');
+        console.log(chalk.cyan('You\'re all set! Run ') + chalk.bold('pseudo-url start') + chalk.cyan(' to start the proxy with HTTPS.'));
+      }
+    } else {
+      console.log(getMkcertInstallInstructions());
+    }
+    console.log('');
+  });
+
+/**
+ * Regenerate certificates
+ */
+program
+  .command('cert-regenerate')
+  .description('Regenerate SSL certificates for all configured domains')
+  .action(() => {
+    try {
+      if (!isMkcertInstalled()) {
+        console.log(chalk.red('Error: mkcert is not installed.'));
+        console.log(chalk.cyan(`Run ${chalk.bold('pseudo-url cert-install')} for installation instructions.`));
+        process.exit(1);
+      }
+      
+      if (!isMkcertCAInstalled()) {
+        console.log(chalk.red('Error: mkcert CA is not installed.'));
+        console.log(chalk.cyan('Run: ') + chalk.bold('mkcert -install'));
+        process.exit(1);
+      }
+      
+      const mappings = getAllMappings();
+      const domains = Object.keys(mappings);
+      
+      if (domains.length === 0) {
+        console.log(chalk.yellow('No domains configured.'));
+        console.log(chalk.cyan(`Use ${chalk.bold('pseudo-url add')} to add a domain first.`));
+        return;
+      }
+      
+      console.log(chalk.cyan(`Generating certificates for ${domains.length} domain(s)...`));
+      console.log(chalk.gray(`  ${domains.join(', ')}\n`));
+      
+      const result = generateCertificates(domains);
+      
+      console.log(chalk.green('✓ Certificates generated successfully!'));
+      console.log(chalk.gray(`  Cert: ${result.cert}`));
+      console.log(chalk.gray(`  Key: ${result.key}`));
+      console.log('');
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+/**
+ * Delete certificates
+ */
+program
+  .command('cert-delete')
+  .description('Delete generated SSL certificates')
+  .action(async () => {
+    try {
+      const certs = getCertificatePaths();
+      
+      if (!certs) {
+        console.log(chalk.yellow('No certificates to delete.'));
+        return;
+      }
+      
+      const { confirm } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'confirm',
+          message: 'Delete SSL certificates?',
+          default: false
+        }
+      ]);
+      
+      if (!confirm) {
+        console.log(chalk.yellow('Cancelled.'));
+        return;
+      }
+      
+      if (deleteCertificates()) {
+        console.log(chalk.green('✓ Certificates deleted.'));
+      } else {
+        console.log(chalk.red('Failed to delete certificates.'));
+      }
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
     }
   });
 

@@ -16,21 +16,37 @@ function ensureConfigDir() {
 }
 
 /**
+ * Get default configuration
+ */
+function getDefaultConfig() {
+  return {
+    mappings: {},
+    proxyPort: 80, // Legacy field, kept for backward compatibility
+    httpPort: 80,
+    httpsPort: 443,
+    httpsEnabled: true
+  };
+}
+
+/**
  * Load configuration from disk
  */
 function loadConfig() {
   ensureConfigDir();
   
   if (!fs.existsSync(CONFIG_FILE)) {
-    return { mappings: {}, proxyPort: 80 };
+    return getDefaultConfig();
   }
   
   try {
     const data = fs.readFileSync(CONFIG_FILE, 'utf8');
-    return JSON.parse(data);
+    const config = JSON.parse(data);
+    
+    // Merge with defaults to ensure all fields exist
+    return { ...getDefaultConfig(), ...config };
   } catch (error) {
     console.error('Error loading config:', error.message);
-    return { mappings: {}, proxyPort: 80 };
+    return getDefaultConfig();
   }
 }
 
@@ -85,26 +101,80 @@ function clearAllMappings() {
 }
 
 /**
- * Set proxy port
+ * Set proxy port (legacy - sets HTTP port)
  */
 function setProxyPort(port) {
   const config = loadConfig();
   config.proxyPort = port;
+  config.httpPort = port;
   return saveConfig(config);
 }
 
 /**
- * Get proxy port
+ * Get proxy port (legacy - returns HTTP port)
  */
 function getProxyPort() {
   const config = loadConfig();
-  return config.proxyPort || 80;
+  return config.httpPort || config.proxyPort || 80;
+}
+
+/**
+ * Set HTTP port
+ */
+function setHttpPort(port) {
+  const config = loadConfig();
+  config.httpPort = port;
+  config.proxyPort = port; // Keep legacy field in sync
+  return saveConfig(config);
+}
+
+/**
+ * Get HTTP port
+ */
+function getHttpPort() {
+  const config = loadConfig();
+  return config.httpPort || config.proxyPort || 80;
+}
+
+/**
+ * Set HTTPS port
+ */
+function setHttpsPort(port) {
+  const config = loadConfig();
+  config.httpsPort = port;
+  return saveConfig(config);
+}
+
+/**
+ * Get HTTPS port
+ */
+function getHttpsPort() {
+  const config = loadConfig();
+  return config.httpsPort || 443;
+}
+
+/**
+ * Enable or disable HTTPS
+ */
+function setHttpsEnabled(enabled) {
+  const config = loadConfig();
+  config.httpsEnabled = enabled;
+  return saveConfig(config);
+}
+
+/**
+ * Check if HTTPS is enabled
+ */
+function isHttpsEnabled() {
+  const config = loadConfig();
+  return config.httpsEnabled !== false; // Default to true
 }
 
 module.exports = {
   CONFIG_DIR,
   CONFIG_FILE,
   HOSTS_BACKUP,
+  getDefaultConfig,
   loadConfig,
   saveConfig,
   addMapping,
@@ -112,6 +182,12 @@ module.exports = {
   getAllMappings,
   clearAllMappings,
   setProxyPort,
-  getProxyPort
+  getProxyPort,
+  setHttpPort,
+  getHttpPort,
+  setHttpsPort,
+  getHttpsPort,
+  setHttpsEnabled,
+  isHttpsEnabled
 };
 

@@ -1,32 +1,14 @@
 const http = require('http');
+const https = require('https');
 const httpProxy = require('http-proxy');
 const { getAllMappings } = require('./config');
+const { loadCertificates } = require('./certificates');
 
 /**
- * Create and start the proxy server
+ * Create request handler for both HTTP and HTTPS servers
  */
-function startProxyServer(port = 80) {
-  const proxy = httpProxy.createProxyServer({});
-  
-  // Handle proxy errors
-  proxy.on('error', (err, req, res) => {
-    console.error('Proxy error:', err.message);
-    if (!res.headersSent) {
-      res.writeHead(502, { 'Content-Type': 'text/html' });
-      res.end(`
-        <html>
-          <head><title>502 Bad Gateway</title></head>
-          <body>
-            <h1>502 Bad Gateway</h1>
-            <p>Cannot connect to target server: ${err.message}</p>
-            <p>Make sure your development server is running on the correct port.</p>
-          </body>
-        </html>
-      `);
-    }
-  });
-  
-  const server = http.createServer((req, res) => {
+function createRequestHandler(proxy, protocol) {
+  return (req, res) => {
     const hostname = req.headers.host ? req.headers.host.split(':')[0] : '';
     const mappings = getAllMappings();
     
@@ -34,7 +16,7 @@ function startProxyServer(port = 80) {
       const targetPort = mappings[hostname];
       const target = `http://127.0.0.1:${targetPort}`;
       
-      console.log(`[${new Date().toISOString()}] ${req.method} ${hostname} -> localhost:${targetPort} ${req.url}`);
+      console.log(`[${new Date().toISOString()}] ${protocol} ${req.method} ${hostname} -> localhost:${targetPort} ${req.url}`);
       
       proxy.web(req, res, { 
         target,
@@ -61,34 +43,116 @@ function startProxyServer(port = 80) {
         </html>
       `);
     }
+  };
+}
+
+/**
+ * Create and start the proxy servers (HTTP and HTTPS)
+ */
+function startProxyServer(httpPort = 80, httpsPort = 443, options = {}) {
+  const { enableHttps = true } = options;
+  
+  const proxy = httpProxy.createProxyServer({});
+  
+  // Handle proxy errors
+  proxy.on('error', (err, req, res) => {
+    console.error('Proxy error:', err.message);
+    if (!res.headersSent) {
+      res.writeHead(502, { 'Content-Type': 'text/html' });
+      res.end(`
+        <html>
+          <head><title>502 Bad Gateway</title></head>
+          <body>
+            <h1>502 Bad Gateway</h1>
+            <p>Cannot connect to target server: ${err.message}</p>
+            <p>Make sure your development server is running on the correct port.</p>
+          </body>
+        </html>
+      `);
+    }
   });
   
-  return new Promise((resolve, reject) => {
-    server.on('error', (err) => {
+  const servers = [];
+  const promises = [];
+  
+  // Create HTTP server
+  const httpServer = http.createServer(createRequestHandler(proxy, 'HTTP'));
+  
+  const httpPromise = new Promise((resolve, reject) => {
+    httpServer.on('error', (err) => {
       if (err.code === 'EACCES') {
-        reject(new Error(`Permission denied to bind to port ${port}. Try running with sudo or use a port >= 1024.`));
+        reject(new Error(`Permission denied to bind to port ${httpPort}. Try running with sudo or use a port >= 1024.`));
       } else if (err.code === 'EADDRINUSE') {
-        reject(new Error(`Port ${port} is already in use. Stop the other service or choose a different port.`));
+        reject(new Error(`Port ${httpPort} is already in use. Stop the other service or choose a different port.`));
       } else {
         reject(err);
       }
     });
     
-    server.listen(port, '127.0.0.1', () => {
-      console.log(`\n✓ Proxy server running on port ${port}`);
-      console.log(`✓ Monitoring ${Object.keys(getAllMappings()).length} domain(s)\n`);
-      
-      const mappings = getAllMappings();
-      if (Object.keys(mappings).length > 0) {
-        console.log('Active mappings:');
-        Object.entries(mappings).forEach(([domain, port]) => {
-          console.log(`  • http://${domain} → http://localhost:${port}`);
-        });
-        console.log('');
-      }
-      
-      resolve(server);
+    httpServer.listen(httpPort, '127.0.0.1', () => {
+      console.log(`✓ HTTP proxy server running on port ${httpPort}`);
+      resolve(httpServer);
     });
+  });
+  
+  promises.push(httpPromise);
+  servers.push(httpServer);
+  
+  // Create HTTPS server if enabled and certificates are available
+  if (enableHttps) {
+    const certs = loadCertificates();
+    
+    if (certs) {
+      try {
+        const httpsServer = https.createServer(
+          {
+            key: certs.key,
+            cert: certs.cert
+          },
+          createRequestHandler(proxy, 'HTTPS')
+        );
+        
+        const httpsPromise = new Promise((resolve, reject) => {
+          httpsServer.on('error', (err) => {
+            if (err.code === 'EACCES') {
+              reject(new Error(`Permission denied to bind to port ${httpsPort}. Try running with sudo.`));
+            } else if (err.code === 'EADDRINUSE') {
+              reject(new Error(`Port ${httpsPort} is already in use. Stop the other service or choose a different port.`));
+            } else {
+              reject(err);
+            }
+          });
+          
+          httpsServer.listen(httpsPort, '127.0.0.1', () => {
+            console.log(`✓ HTTPS proxy server running on port ${httpsPort}`);
+            resolve(httpsServer);
+          });
+        });
+        
+        promises.push(httpsPromise);
+        servers.push(httpsServer);
+      } catch (error) {
+        console.error('Warning: Failed to start HTTPS server:', error.message);
+      }
+    }
+  }
+  
+  return Promise.all(promises).then(() => {
+    console.log(`✓ Monitoring ${Object.keys(getAllMappings()).length} domain(s)\n`);
+    
+    const mappings = getAllMappings();
+    if (Object.keys(mappings).length > 0) {
+      console.log('Active mappings:');
+      Object.entries(mappings).forEach(([domain, port]) => {
+        const protocols = [];
+        if (servers.length >= 1) protocols.push(`http://${domain}`);
+        if (servers.length >= 2) protocols.push(`https://${domain}`);
+        console.log(`  • ${protocols.join(' | ')} → http://localhost:${port}`);
+      });
+      console.log('');
+    }
+    
+    return servers;
   });
 }
 

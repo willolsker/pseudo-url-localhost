@@ -391,6 +391,20 @@ sudo pseudo-url start
 - **Environment Parity**: Closer to production configuration during development
 - **Context Switching**: Dramatically improves developer convenience when switching between multiple serverless projects - memorable domain names (like `auth.local`, `api.local`) are much easier to remember and access than port numbers (`localhost:3001`, `localhost:3002`), reducing cognitive load and speeding up development workflow
 
+## Tips for Daily Use
+
+1. **Use `.local` domains**: They're recognized as local-only and won't conflict with real websites
+
+2. **Descriptive names**: Use clear names like `projectname-frontend.local` instead of just `app.local`
+
+3. **Keep proxy running**: You can leave the proxy running in a background process or terminal tab
+
+4. **One-time sync**: You only need to run `sudo pseudo-url sync` when you add/remove mappings, not every time you start the proxy
+
+5. **Share with team**: Your team members can use the same domain names for consistency across development environments
+
+6. **Verify setup**: After adding mappings, test with `curl http://localhost:PORT` first, then test the custom domain
+
 ## Port Requirements
 
 - **Port 80** (default): Requires `sudo` to run the proxy server

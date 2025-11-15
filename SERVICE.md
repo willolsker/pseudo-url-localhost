@@ -608,8 +608,6 @@ However, you can:
 ### Documentation
 
 - Main README: `README.md`
-- Getting Started: `GETTING_STARTED.md`
-- Quick Start: `QUICKSTART.md`
 - This Service Guide: `SERVICE.md`
 
 ### Checking Status

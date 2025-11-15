@@ -1,10 +1,10 @@
 # HTTPS Testing Guide
 
-This guide will help you test the HTTPS functionality with your existing `ai-fitness.local` configuration.
+This guide will help you test the HTTPS functionality with your existing `ai-fitness.nextium` configuration.
 
 ## Prerequisites
 
-1. You already have `ai-fitness.local` mapped to port 3000
+1. You already have `ai-fitness.nextium` mapped to port 3000
 2. Your development server is running on port 3000
 
 ## Setup Steps
@@ -31,18 +31,18 @@ mkcert -install
 ### 2. Check Your Current Status
 
 ```bash
-pseudo-url status
+nextium status
 ```
 
 This should show:
-- Your existing `ai-fitness.local → 3000` mapping
+- Your existing `ai-fitness.nextium → 3000` mapping
 - Whether mkcert is installed
 - Whether certificates are generated
 
 ### 3. Check Certificate Status
 
 ```bash
-pseudo-url cert-status
+nextium cert-status
 ```
 
 ### 4. Generate Certificates (if needed)
@@ -50,7 +50,7 @@ pseudo-url cert-status
 If certificates aren't automatically generated, run:
 
 ```bash
-sudo pseudo-url cert-regenerate
+sudo nextium cert-regenerate
 ```
 
 ### 5. Start the Proxy with HTTPS
@@ -58,12 +58,12 @@ sudo pseudo-url cert-regenerate
 Stop any running proxy first (Ctrl+C), then:
 
 ```bash
-sudo pseudo-url start
+sudo nextium start
 ```
 
 You should see output like:
 ```
-Starting pseudo-url proxy server...
+Starting nextium proxy server...
 
 ✓ SSL certificates ready
 ✓ HTTP proxy server running on port 80
@@ -71,7 +71,7 @@ Starting pseudo-url proxy server...
 ✓ Monitoring 1 domain(s)
 
 Active mappings:
-  • http://ai-fitness.local | https://ai-fitness.local → http://localhost:3000
+  • http://ai-fitness.nextium | https://ai-fitness.nextium → http://localhost:3000
 ```
 
 ## Testing Chrome HTTP-Only Features
@@ -80,7 +80,7 @@ Active mappings:
 
 Open Chrome and navigate to:
 ```
-https://ai-fitness.local
+https://ai-fitness.nextium
 ```
 
 You should see:
@@ -200,17 +200,17 @@ If you see certificate warnings:
 mkcert -install
 
 # Regenerate certificates
-sudo pseudo-url cert-regenerate
+sudo nextium cert-regenerate
 
 # Restart the proxy
-sudo pseudo-url start
+sudo nextium start
 ```
 
 ### HTTPS Not Starting
 
 Check:
 ```bash
-pseudo-url cert-status
+nextium cert-status
 ```
 
 Make sure:
@@ -226,21 +226,21 @@ If port 443 is already in use:
 sudo lsof -i :443
 
 # Stop the other service or use a custom port
-sudo pseudo-url start --https-port 8443
+sudo nextium start --https-port 8443
 ```
 
-Then access: `https://ai-fitness.local:8443`
+Then access: `https://ai-fitness.nextium:8443`
 
 ## Comparison: HTTP vs HTTPS
 
-### HTTP (http://ai-fitness.local)
+### HTTP (http://ai-fitness.nextium)
 - ❌ Geolocation may not work
 - ❌ Camera/microphone blocked
 - ❌ Service Workers limited
 - ❌ Some Web APIs unavailable
 - ⚠️ Browser warnings for modern features
 
-### HTTPS (https://ai-fitness.local)
+### HTTPS (https://ai-fitness.nextium)
 - ✅ Geolocation works
 - ✅ Camera/microphone accessible
 - ✅ Service Workers fully supported
@@ -252,27 +252,27 @@ Then access: `https://ai-fitness.local:8443`
 
 ### Use Both (Default)
 ```bash
-sudo pseudo-url start
-# Access via http://ai-fitness.local OR https://ai-fitness.local
+sudo nextium start
+# Access via http://ai-fitness.nextium OR https://ai-fitness.nextium
 ```
 
 ### HTTPS Only
 ```bash
-sudo pseudo-url start
-# Just use https://ai-fitness.local
+sudo nextium start
+# Just use https://ai-fitness.nextium
 ```
 
 ### HTTP Only (Disable HTTPS)
 ```bash
-sudo pseudo-url start --no-https
-# Only http://ai-fitness.local will work
+sudo nextium start --no-https
+# Only http://ai-fitness.nextium will work
 ```
 
 ## Success Criteria
 
 Your HTTPS setup is working correctly if:
 
-1. ✅ `https://ai-fitness.local` loads without warnings
+1. ✅ `https://ai-fitness.nextium` loads without warnings
 2. ✅ Chrome shows a padlock icon
 3. ✅ Geolocation API works
 4. ✅ `window.isSecureContext` returns `true`
@@ -287,7 +287,7 @@ Once HTTPS is working:
 1. Update your development workflow to use HTTPS URLs
 2. Test any features that require secure contexts
 3. Consider using HTTPS for all your local development domains
-4. Add more domains as needed with `pseudo-url add`
+4. Add more domains as needed with `nextium add`
 
 All new domains will automatically get SSL certificates!
 

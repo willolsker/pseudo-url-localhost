@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.pseudo-url-localhost</string>
+    <string>com.nextium</string>
     
     <key>ProgramArguments</key>
     <array>
@@ -19,10 +19,10 @@
     <true/>
     
     <key>StandardOutPath</key>
-    <string>/var/log/pseudo-url-localhost/stdout.log</string>
+    <string>/var/log/nextium/stdout.log</string>
     
     <key>StandardErrorPath</key>
-    <string>/var/log/pseudo-url-localhost/stderr.log</string>
+    <string>/var/log/nextium/stderr.log</string>
     
     <key>WorkingDirectory</key>
     <string>{{WORKING_DIR}}</string>
@@ -36,4 +36,5 @@
     </dict>
 </dict>
 </plist>
+
 

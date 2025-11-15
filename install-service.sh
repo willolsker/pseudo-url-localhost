@@ -1,5 +1,5 @@
 #!/bin/bash
-# Install pseudo-url as a system service
+# Install nextium as a system service
 
 set -e
 
@@ -9,8 +9,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo "pseudo-url Service Installation"
-echo "================================"
+echo "Nextium Service Installation"
+echo "============================"
 echo ""
 
 # Must run as root
@@ -21,7 +21,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Check if service is already installed
-if [ -f "/Library/LaunchDaemons/com.pseudo-url-localhost.plist" ]; then
+if [ -f "/Library/LaunchDaemons/com.nextium.plist" ]; then
     echo -e "${YELLOW}Service is already installed.${NC}"
     read -p "Do you want to reinstall? (y/N) " -n 1 -r
     echo
@@ -30,8 +30,8 @@ if [ -f "/Library/LaunchDaemons/com.pseudo-url-localhost.plist" ]; then
         exit 0
     fi
     # Unload existing service
-    launchctl bootout system/com.pseudo-url-localhost 2>/dev/null || true
-    rm -f /Library/LaunchDaemons/com.pseudo-url-localhost.plist
+    launchctl bootout system/com.nextium 2>/dev/null || true
+    rm -f /Library/LaunchDaemons/com.nextium.plist
 fi
 
 # Detect Node.js path
@@ -46,25 +46,25 @@ fi
 
 echo -e "${GREEN}✓${NC} Node.js found at: $NODE_PATH"
 
-# Detect pseudo-url CLI path
-echo "Detecting pseudo-url installation..."
+# Detect nextium CLI path
+echo "Detecting nextium installation..."
 
 # Try global installation first
-CLI_PATH=$(which pseudo-url 2>/dev/null)
+CLI_PATH=$(which nextium 2>/dev/null)
 
 # If not found globally, check if we're in the repo directory
 if [ -z "$CLI_PATH" ]; then
     if [ -f "$PWD/bin/cli.js" ]; then
         CLI_PATH="$PWD/bin/cli.js"
     else
-        echo -e "${RED}Error: pseudo-url CLI not found${NC}"
-        echo "Please install pseudo-url globally: npm install -g pseudo-url-localhost"
-        echo "Or run this script from the pseudo-url-localhost directory"
+        echo -e "${RED}Error: nextium CLI not found${NC}"
+        echo "Please install nextium globally: npm install -g nextium"
+        echo "Or run this script from the nextium directory"
         exit 1
     fi
 fi
 
-echo -e "${GREEN}✓${NC} pseudo-url found at: $CLI_PATH"
+echo -e "${GREEN}✓${NC} nextium found at: $CLI_PATH"
 
 # Determine working directory
 if [ -L "$CLI_PATH" ]; then
@@ -77,11 +77,11 @@ fi
 echo -e "${GREEN}✓${NC} Working directory: $WORKING_DIR"
 
 # Check if template exists
-TEMPLATE_FILE="$WORKING_DIR/../com.pseudo-url-localhost.plist.template"
+TEMPLATE_FILE="$WORKING_DIR/../com.nextium.plist.template"
 if [ ! -f "$TEMPLATE_FILE" ]; then
     # Try current directory
-    if [ -f "$PWD/com.pseudo-url-localhost.plist.template" ]; then
-        TEMPLATE_FILE="$PWD/com.pseudo-url-localhost.plist.template"
+    if [ -f "$PWD/com.nextium.plist.template" ]; then
+        TEMPLATE_FILE="$PWD/com.nextium.plist.template"
     else
         echo -e "${RED}Error: Plist template not found${NC}"
         echo "Expected at: $TEMPLATE_FILE"
@@ -91,8 +91,8 @@ fi
 
 # Create log directory
 echo "Creating log directory..."
-mkdir -p /var/log/pseudo-url-localhost
-chmod 755 /var/log/pseudo-url-localhost
+mkdir -p /var/log/nextium
+chmod 755 /var/log/nextium
 echo -e "${GREEN}✓${NC} Log directory created"
 
 # Generate plist from template
@@ -100,46 +100,46 @@ echo "Generating service configuration..."
 sed -e "s|{{NODE_PATH}}|$NODE_PATH|g" \
     -e "s|{{CLI_PATH}}|$CLI_PATH|g" \
     -e "s|{{WORKING_DIR}}|$WORKING_DIR|g" \
-    "$TEMPLATE_FILE" > /tmp/com.pseudo-url-localhost.plist
+    "$TEMPLATE_FILE" > /tmp/com.nextium.plist
 
 # Install plist
 echo "Installing service..."
-cp /tmp/com.pseudo-url-localhost.plist /Library/LaunchDaemons/
-chown root:wheel /Library/LaunchDaemons/com.pseudo-url-localhost.plist
-chmod 644 /Library/LaunchDaemons/com.pseudo-url-localhost.plist
-rm /tmp/com.pseudo-url-localhost.plist
+cp /tmp/com.nextium.plist /Library/LaunchDaemons/
+chown root:wheel /Library/LaunchDaemons/com.nextium.plist
+chmod 644 /Library/LaunchDaemons/com.nextium.plist
+rm /tmp/com.nextium.plist
 echo -e "${GREEN}✓${NC} Service configuration installed"
 
 # Load service
 echo "Starting service..."
-launchctl bootstrap system /Library/LaunchDaemons/com.pseudo-url-localhost.plist
+launchctl bootstrap system /Library/LaunchDaemons/com.nextium.plist
 
 # Wait a moment for service to start
 sleep 2
 
 # Verify service is running
-if launchctl print system/com.pseudo-url-localhost > /dev/null 2>&1; then
+if launchctl print system/com.nextium > /dev/null 2>&1; then
     echo ""
     echo -e "${GREEN}✓ Service installed and started successfully!${NC}"
     echo ""
-    echo "The pseudo-url proxy is now running system-wide on ports 80/443."
+    echo "The nextium proxy is now running system-wide on ports 80/443."
     echo "It will automatically start on system boot."
     echo ""
     echo "Useful commands:"
-    echo "  pseudo-url service status    - Check service status"
-    echo "  pseudo-url service logs      - View logs"
-    echo "  pseudo-url service restart   - Restart service"
-    echo "  pseudo-url service stop      - Stop service"
-    echo "  pseudo-url add <domain> <port> - Add a mapping"
+    echo "  nextium service status    - Check service status"
+    echo "  nextium service logs      - View logs"
+    echo "  nextium service restart   - Restart service"
+    echo "  nextium service stop      - Stop service"
+    echo "  nextium create            - Setup a Next.js project"
     echo ""
     echo "Log files are located at:"
-    echo "  /var/log/pseudo-url-localhost/stdout.log"
-    echo "  /var/log/pseudo-url-localhost/stderr.log"
+    echo "  /var/log/nextium/stdout.log"
+    echo "  /var/log/nextium/stderr.log"
 else
     echo ""
     echo -e "${RED}✗ Service failed to start${NC}"
     echo "Check logs for errors:"
-    echo "  cat /var/log/pseudo-url-localhost/stderr.log"
+    echo "  cat /var/log/nextium/stderr.log"
     exit 1
 fi
 

@@ -6,8 +6,8 @@ const HOSTS_FILE = os.platform() === 'win32'
   ? 'C:\\Windows\\System32\\drivers\\etc\\hosts'
   : '/etc/hosts';
 
-const MARKER_START = '# pseudo-url-localhost START';
-const MARKER_END = '# pseudo-url-localhost END';
+const MARKER_START = '# nextium START';
+const MARKER_END = '# nextium END';
 
 /**
  * Read the hosts file

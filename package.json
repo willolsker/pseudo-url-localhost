@@ -1,10 +1,10 @@
 {
-  "name": "pseudo-url-localhost",
+  "name": "nextium",
   "version": "1.0.0",
-  "description": "Map custom pseudo-URLs to your localhost development servers",
+  "description": "Local serverless management for Next.js projects with on-demand process management",
   "main": "src/index.js",
   "bin": {
-    "pseudo-url": "./bin/cli.js"
+    "nextium": "./bin/cli.js"
   },
   "scripts": {
     "start": "node src/index.js",
@@ -17,13 +17,13 @@
     "dev": "sudo node bin/cli.js dev"
   },
   "keywords": [
-    "localhost",
-    "proxy",
+    "nextjs",
+    "serverless",
     "development",
-    "custom-domain",
-    "pseudo-url",
-    "hosts",
-    "dns"
+    "local-development",
+    "nextium",
+    "proxy",
+    "on-demand"
   ],
   "author": "",
   "license": "MIT",
@@ -41,6 +41,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/pseudo-url-localhost.git"
+    "url": "https://github.com/yourusername/nextium.git"
   }
 }

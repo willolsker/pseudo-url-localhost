@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const CONFIG_DIR = path.join(os.homedir(), '.pseudo-url');
+const CONFIG_DIR = path.join(os.homedir(), '.nextium');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 const HOSTS_BACKUP = path.join(CONFIG_DIR, 'hosts.backup');
 
@@ -26,6 +26,52 @@ function getDefaultConfig() {
     httpsPort: 443,
     httpsEnabled: true
   };
+}
+
+/**
+ * Validate that a domain uses the .nextium TLD
+ * @param {string} domain - Domain to validate
+ * @returns {boolean} True if valid
+ * @throws {Error} If domain doesn't end with .nextium
+ */
+function validateNextiumDomain(domain) {
+  if (!domain.endsWith('.nextium')) {
+    throw new Error(
+      `Invalid domain: ${domain}\n` +
+      `Nextium requires all domains to end with .nextium\n` +
+      `Example: myproject.nextium`
+    );
+  }
+  
+  // Additional validation
+  if (domain === '.nextium') {
+    throw new Error('Domain cannot be just .nextium');
+  }
+  
+  // Check for valid subdomain format
+  const parts = domain.split('.');
+  if (parts.length < 2 || parts[parts.length - 1] !== 'nextium') {
+    throw new Error(`Invalid domain format: ${domain}`);
+  }
+  
+  // Validate subdomain parts (no empty parts, no invalid characters)
+  const subdomainParts = parts.slice(0, -1);
+  for (const part of subdomainParts) {
+    if (!part || part.length === 0) {
+      throw new Error(`Invalid domain: ${domain} (empty subdomain part)`);
+    }
+    if (!/^[a-z0-9-]+$/i.test(part)) {
+      throw new Error(
+        `Invalid domain: ${domain}\n` +
+        `Subdomain parts can only contain letters, numbers, and hyphens`
+      );
+    }
+    if (part.startsWith('-') || part.endsWith('-')) {
+      throw new Error(`Invalid domain: ${domain} (subdomain cannot start or end with hyphen)`);
+    }
+  }
+  
+  return true;
 }
 
 /**
@@ -59,6 +105,10 @@ function validateConfig(config) {
   // Validate domain names
   if (config.mappings) {
     Object.keys(config.mappings).forEach(domain => {
+      // Validate .nextium TLD
+      validateNextiumDomain(domain);
+      
+      // Additional security checks
       if (domain.includes('..') || domain.startsWith('.')) {
         throw new Error(`Invalid domain name: ${domain}`);
       }
@@ -115,8 +165,14 @@ function saveConfig(config) {
 
 /**
  * Add a new URL mapping
+ * @param {string} domain - Domain name (must end with .nextium)
+ * @param {number} port - Port number
+ * @returns {boolean} Success status
  */
 function addMapping(domain, port) {
+  // Validate .nextium domain
+  validateNextiumDomain(domain);
+  
   const config = loadConfig();
   config.mappings[domain] = port;
   return saveConfig(config);
@@ -236,6 +292,7 @@ module.exports = {
   setHttpsPort,
   getHttpsPort,
   setHttpsEnabled,
-  isHttpsEnabled
+  isHttpsEnabled,
+  validateNextiumDomain
 };
 

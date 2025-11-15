@@ -1,5 +1,5 @@
 /**
- * Type definitions for pseudo-url-localhost
+ * Type definitions for nextium
  */
 
 /**
@@ -76,7 +76,7 @@ export function writeHostsFile(content: string): boolean;
 export function backupHostsFile(): boolean;
 
 /**
- * Remove pseudo-url entries from hosts file
+ * Remove nextium entries from hosts file
  */
 export function removeFromHosts(): boolean;
 

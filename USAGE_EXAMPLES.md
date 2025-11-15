@@ -1,6 +1,6 @@
 # Usage Examples
 
-This document provides practical examples of using pseudo-url-localhost in various scenarios.
+This document provides practical examples of using nextium-localhost in various scenarios.
 
 ## Basic Usage
 
@@ -10,15 +10,15 @@ You have a React app running on port 3000:
 
 ```bash
 # Add mapping
-pseudo-url add myreactapp.local 3000
+nextium add myreactapp.nextium 3000
 
 # Sync hosts file
-sudo pseudo-url sync
+sudo nextium sync
 
 # Start proxy
-sudo pseudo-url start
+sudo nextium start
 
-# Now visit: http://myreactapp.local
+# Now visit: http://myreactapp.nextium
 ```
 
 ### Multiple Applications
@@ -27,29 +27,29 @@ Running multiple services for a full-stack application:
 
 ```bash
 # Frontend
-pseudo-url add frontend.local 3000
+nextium add frontend.nextium 3000
 
 # Backend API
-pseudo-url add api.local 8000
+nextium add api.nextium 8000
 
 # Database admin tool
-pseudo-url add dbadmin.local 5050
+nextium add dbadmin.nextium 5050
 
 # Documentation site
-pseudo-url add docs.local 3001
+nextium add docs.nextium 3001
 
 # Sync all at once
-sudo pseudo-url sync
+sudo nextium sync
 
 # Start proxy
-sudo pseudo-url start
+sudo nextium start
 ```
 
 Now access:
-- Frontend: `http://frontend.local`
-- API: `http://api.local`
-- DB Admin: `http://dbadmin.local`
-- Docs: `http://docs.local`
+- Frontend: `http://frontend.nextium`
+- API: `http://api.nextium`
+- DB Admin: `http://dbadmin.nextium`
+- Docs: `http://docs.nextium`
 
 ## Advanced Scenarios
 
@@ -59,12 +59,12 @@ Share your configuration with team members:
 
 ```bash
 # Export configuration
-cat ~/.pseudo-url/config.json > project-domains.json
+cat ~/.nextium/config.json > project-domains.json
 
 # Team member imports (manual):
 # Copy mappings from project-domains.json
-pseudo-url add frontend.local 3000
-pseudo-url add api.local 8000
+nextium add frontend.nextium 3000
+nextium add api.nextium 8000
 # ... etc
 ```
 
@@ -74,23 +74,23 @@ If you can't use sudo or want to avoid port 80:
 
 ```bash
 # Set proxy to port 8080
-pseudo-url port 8080
+nextium port 8080
 
 # Start without sudo
-pseudo-url start
+nextium start
 
 # Access with port number
-# http://myapp.local:8080
+# http://myapp.nextium:8080
 ```
 
 ### Development vs Production Naming
 
-Use `.local` for development to avoid conflicts:
+Use `.nextium` for development to avoid conflicts:
 
 ```bash
 # Development
-pseudo-url add myapp.local 3000
-pseudo-url add api.myapp.local 8000
+nextium add myapp.nextium 3000
+nextium add api.myapp.nextium 8000
 
 # Later, your production might be:
 # myapp.com
@@ -102,34 +102,34 @@ pseudo-url add api.myapp.local 8000
 Map all your microservices:
 
 ```bash
-pseudo-url add gateway.local 8000
-pseudo-url add auth.local 8001
-pseudo-url add users.local 8002
-pseudo-url add products.local 8003
-pseudo-url add orders.local 8004
-pseudo-url add payments.local 8005
+nextium add gateway.nextium 8000
+nextium add auth.nextium 8001
+nextium add users.nextium 8002
+nextium add products.nextium 8003
+nextium add orders.nextium 8004
+nextium add payments.nextium 8005
 
-sudo pseudo-url sync
-sudo pseudo-url start
+sudo nextium sync
+sudo nextium start
 ```
 
 ### Quick Project Switching
 
 ```bash
 # Check current mappings
-pseudo-url list
+nextium list
 
 # Working on Project A
-pseudo-url add app.local 3000
-sudo pseudo-url sync
+nextium add app.nextium 3000
+sudo nextium sync
 
 # Switch to Project B (different port)
-pseudo-url add app.local 4000
-sudo pseudo-url sync
+nextium add app.nextium 4000
+sudo nextium sync
 
 # Or use different domains
-pseudo-url add projecta.local 3000
-pseudo-url add projectb.local 4000
+nextium add projecta.nextium 3000
+nextium add projectb.nextium 4000
 ```
 
 ## Integration with Development Tools
@@ -149,10 +149,10 @@ services:
 
 ```bash
 # After docker-compose up
-pseudo-url add frontend.local 3000
-pseudo-url add backend.local 8000
-sudo pseudo-url sync
-sudo pseudo-url start
+nextium add frontend.nextium 3000
+nextium add backend.nextium 8000
+sudo nextium sync
+sudo nextium start
 ```
 
 ### With Package.json Scripts
@@ -161,8 +161,8 @@ sudo pseudo-url start
 {
   "scripts": {
     "dev": "npm run start",
-    "setup:domain": "pseudo-url add myapp.local 3000 && sudo pseudo-url sync",
-    "proxy:start": "sudo pseudo-url start"
+    "setup:domain": "nextium add myapp.nextium 3000 && sudo nextium sync",
+    "proxy:start": "sudo nextium start"
   }
 }
 ```
@@ -171,11 +171,11 @@ sudo pseudo-url start
 
 ```bash
 # React app on 3000
-pseudo-url add myapp.local 3000
+nextium add myapp.nextium 3000
 
 # API proxy in package.json still works
 # The proxy field in package.json proxies API calls
-# while pseudo-url handles the domain
+# while nextium handles the domain
 ```
 
 ## Workflow Examples
@@ -184,14 +184,14 @@ pseudo-url add myapp.local 3000
 
 ```bash
 # 1. Check status
-pseudo-url status
+nextium status
 
 # 2. Start your dev servers (example)
 cd ~/projects/frontend && npm start &
 cd ~/projects/backend && npm start &
 
 # 3. Start proxy
-sudo pseudo-url start
+sudo nextium start
 ```
 
 ### Adding New Service Mid-Development
@@ -200,11 +200,11 @@ sudo pseudo-url start
 # You're already running proxy server
 # In a new terminal:
 
-pseudo-url add newservice.local 9000
-sudo pseudo-url sync
+nextium add newservice.nextium 9000
+sudo nextium sync
 
 # Restart proxy server (Ctrl+C in proxy terminal, then):
-sudo pseudo-url start
+sudo nextium start
 ```
 
 ### End of Day Cleanup
@@ -212,8 +212,8 @@ sudo pseudo-url start
 ```bash
 # Stop proxy (Ctrl+C)
 # Optionally clear mappings if project is done
-pseudo-url clear
-sudo pseudo-url sync
+nextium clear
+sudo nextium sync
 ```
 
 ## Troubleshooting Examples
@@ -222,17 +222,17 @@ sudo pseudo-url sync
 
 ```bash
 # 1. Verify mapping exists
-pseudo-url list
+nextium list
 
 # 2. Check hosts file
-cat /etc/hosts | grep pseudo-url
+cat /etc/hosts | grep nextium
 
 # 3. Flush DNS cache (macOS)
 sudo dscacheutil -flushcache
 sudo killall -HUP mDNSResponder
 
 # 4. Verify proxy is running
-pseudo-url status
+nextium status
 
 # 5. Check if dev server is running
 curl http://localhost:3000
@@ -245,59 +245,59 @@ curl http://localhost:3000
 sudo lsof -i :80
 
 # Use different port
-pseudo-url port 8080
-pseudo-url start
+nextium port 8080
+nextium start
 ```
 
 ### Permission Issues
 
 ```bash
 # Check permissions
-pseudo-url status
+nextium status
 
 # Grant permissions
-sudo pseudo-url sync
+sudo nextium sync
 
 # For proxy on port 80
-sudo pseudo-url start
+sudo nextium start
 
 # Or use non-privileged port
-pseudo-url port 8080
-pseudo-url start
+nextium port 8080
+nextium start
 ```
 
 ## Best Practices
 
-1. **Use `.local` TLD**: Avoid conflicts with real domains
+1. **Use `.nextium` TLD**: Avoid conflicts with real domains
    ```bash
-   pseudo-url add myapp.local 3000    # Good
-   pseudo-url add myapp.com 3000      # Bad - might conflict
+   nextium add myapp.nextium 3000    # Good
+   nextium add myapp.com 3000      # Bad - might conflict
    ```
 
 2. **Descriptive Names**: Use clear, project-specific names
    ```bash
-   pseudo-url add ecommerce-admin.local 3000
-   pseudo-url add ecommerce-api.local 8000
+   nextium add ecommerce-admin.nextium 3000
+   nextium add ecommerce-api.nextium 8000
    ```
 
 3. **Document Your Mappings**: Keep a list in your project
    ```bash
    # Create domains.txt in your project
-   echo "frontend.local -> 3000" > domains.txt
-   echo "api.local -> 8000" >> domains.txt
+   echo "frontend.nextium -> 3000" > domains.txt
+   echo "api.nextium -> 8000" >> domains.txt
    ```
 
 4. **Regular Cleanup**: Remove unused mappings
    ```bash
-   pseudo-url list
-   pseudo-url remove old-project.local
+   nextium list
+   nextium remove old-project.nextium
    ```
 
 5. **Team Coordination**: Share your domain scheme
    ```bash
    # In project README.md
    # Development URLs:
-   # - Frontend: http://myapp.local (port 3000)
-   # - API: http://api.myapp.local (port 8000)
+   # - Frontend: http://myapp.nextium (port 3000)
+   # - API: http://api.myapp.nextium (port 8000)
    ```
 

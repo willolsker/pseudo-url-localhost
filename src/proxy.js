@@ -4,6 +4,14 @@ const httpProxy = require('http-proxy');
 const fs = require('fs');
 const { getAllMappings, CONFIG_FILE } = require('./config');
 const { loadCertificates, ensureCertificates, isMkcertInstalled, isMkcertCAInstalled } = require('./certificates');
+const { getProject } = require('./project-config');
+const { 
+  getProcessInfo, 
+  startDevServer, 
+  updateLastAccess,
+  startIdleCheck,
+  cleanup
+} = require('./process-manager');
 
 // Rate limiting storage
 const requestCounts = new Map();
@@ -130,23 +138,31 @@ function handleConfigChange() {
 /**
  * Setup signal handlers for graceful shutdown and reload
  */
-function setupSignalHandlers(servers) {
+function setupSignalHandlers(servers, idleCheckInterval) {
   // SIGTERM - graceful shutdown
-  process.on('SIGTERM', () => {
+  process.on('SIGTERM', async () => {
     log('info', 'Received SIGTERM, shutting down gracefully');
+    if (idleCheckInterval) {
+      clearInterval(idleCheckInterval);
+    }
     if (configWatcher) {
       configWatcher.close();
     }
+    await cleanup();
     servers.forEach(server => server.close());
     process.exit(0);
   });
   
   // SIGINT - graceful shutdown (Ctrl+C)
-  process.on('SIGINT', () => {
+  process.on('SIGINT', async () => {
     log('info', 'Received SIGINT, shutting down gracefully');
+    if (idleCheckInterval) {
+      clearInterval(idleCheckInterval);
+    }
     if (configWatcher) {
       configWatcher.close();
     }
+    await cleanup();
     servers.forEach(server => server.close());
     process.exit(0);
   });
@@ -159,14 +175,77 @@ function setupSignalHandlers(servers) {
 }
 
 /**
+ * Show loading page while server is starting
+ */
+function showLoadingPage(res, hostname) {
+  res.writeHead(200, { 
+    'Content-Type': 'text/html',
+    'Refresh': '2'  // Auto-refresh every 2 seconds
+  });
+  res.end(`
+    <html>
+      <head>
+        <title>Starting ${hostname}...</title>
+        <style>
+          body {
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+          }
+          .container {
+            text-align: center;
+            padding: 2rem;
+          }
+          .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 2rem;
+          }
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+          h1 { margin: 0 0 1rem; font-size: 2rem; }
+          p { margin: 0.5rem 0; opacity: 0.9; }
+          code {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="spinner"></div>
+          <h1>Starting Development Server</h1>
+          <p><code>${hostname}</code></p>
+          <p>This may take a moment on first start...</p>
+          <p style="font-size: 0.9rem; margin-top: 2rem; opacity: 0.7;">
+            Powered by Nextium
+          </p>
+        </div>
+      </body>
+    </html>
+  `);
+}
+
+/**
  * Create request handler for both HTTP and HTTPS servers
  */
 function createRequestHandler(proxy, protocol) {
-  return (req, res) => {
+  return async (req, res) => {
     const hostname = req.headers.host ? req.headers.host.split(':')[0] : '';
     const mappings = getAllMappings();
     
-    if (hostname && mappings[hostname]) {
+    if (hostname && (hostname.endsWith('.nextium') || mappings[hostname])) {
       // Check rate limit
       if (!checkRateLimit(hostname)) {
         res.writeHead(429, { 'Content-Type': 'text/html' });
@@ -183,22 +262,101 @@ function createRequestHandler(proxy, protocol) {
         return;
       }
       
-      const targetPort = mappings[hostname];
-      const target = `http://127.0.0.1:${targetPort}`;
+      // Check if this is a Nextium project
+      const project = getProject(hostname);
       
-      log('info', `${protocol} ${req.method} ${hostname} -> localhost:${targetPort} ${req.url}`, {
-        protocol,
-        method: req.method,
-        hostname,
-        targetPort,
-        url: req.url
-      });
-      
-      proxy.web(req, res, { 
-        target,
-        changeOrigin: true,
-        secure: false
-      });
+      if (project) {
+        // Process-managed project (Nextium)
+        let processInfo = getProcessInfo(hostname);
+        
+        // If not running, start it
+        if (!processInfo || processInfo.state === 'stopped') {
+          log('info', `Starting dev server for ${hostname} (HTTP-triggered)`, { hostname });
+          
+          // Show loading page
+          showLoadingPage(res, hostname);
+          
+          try {
+            // Start the dev server
+            processInfo = await startDevServer(hostname);
+            log('info', `Dev server started for ${hostname}`, { 
+              hostname, 
+              port: processInfo.port,
+              pid: processInfo.pid 
+            });
+          } catch (error) {
+            log('error', `Failed to start dev server for ${hostname}`, { 
+              hostname, 
+              error: error.message 
+            });
+            res.writeHead(503, { 'Content-Type': 'text/html' });
+            res.end(`
+              <html>
+                <head><title>503 Service Unavailable</title></head>
+                <body>
+                  <h1>503 Service Unavailable</h1>
+                  <p>Failed to start development server for: <strong>${hostname}</strong></p>
+                  <p>Error: ${error.message}</p>
+                  <p>Check logs with: <code>nextium logs ${hostname}</code></p>
+                </body>
+              </html>
+            `);
+            return;
+          }
+          return; // Loading page was sent, will retry on refresh
+        }
+        
+        // Update last access time
+        updateLastAccess(hostname);
+        
+        const targetPort = processInfo.port;
+        const target = `http://127.0.0.1:${targetPort}`;
+        
+        log('info', `${protocol} ${req.method} ${hostname} -> localhost:${targetPort} ${req.url}`, {
+          protocol,
+          method: req.method,
+          hostname,
+          targetPort,
+          url: req.url
+        });
+        
+        proxy.web(req, res, { 
+          target,
+          changeOrigin: true,
+          secure: false
+        });
+      } else if (mappings[hostname]) {
+        // Legacy static mapping (for backward compatibility)
+        const targetPort = mappings[hostname];
+        const target = `http://127.0.0.1:${targetPort}`;
+        
+        log('info', `${protocol} ${req.method} ${hostname} -> localhost:${targetPort} ${req.url}`, {
+          protocol,
+          method: req.method,
+          hostname,
+          targetPort,
+          url: req.url
+        });
+        
+        proxy.web(req, res, { 
+          target,
+          changeOrigin: true,
+          secure: false
+        });
+      } else {
+        // Not found
+        res.writeHead(404, { 'Content-Type': 'text/html' });
+        res.end(`
+          <html>
+            <head><title>404 Not Found</title></head>
+            <body>
+              <h1>404 Not Found</h1>
+              <p>No project found for domain: <strong>${hostname || 'unknown'}</strong></p>
+              <p>Use <code>nextium create</code> in your Next.js project to register it.</p>
+            </body>
+          </html>
+        `);
+      }
     } else {
       res.writeHead(404, { 'Content-Type': 'text/html' });
       res.end(`
@@ -207,14 +365,7 @@ function createRequestHandler(proxy, protocol) {
           <body>
             <h1>404 Not Found</h1>
             <p>No mapping found for domain: <strong>${hostname || 'unknown'}</strong></p>
-            <hr>
-            <h2>Configured Mappings:</h2>
-            <ul>
-              ${Object.entries(mappings).map(([domain, port]) => 
-                `<li><strong>${domain}</strong> → localhost:${port}</li>`
-              ).join('')}
-            </ul>
-            <p>Use <code>pseudo-url add</code> to add new mappings.</p>
+            <p>Use <code>nextium create</code> to setup a Next.js project.</p>
           </body>
         </html>
       `);
@@ -343,8 +494,12 @@ function startProxyServer(httpPort = 80, httpsPort = 443, options = {}) {
     // Setup config file watcher for automatic cert regeneration
     setupConfigWatcher();
     
+    // Start idle process checker
+    const idleCheckInterval = startIdleCheck();
+    log('info', 'Idle process checker started', { intervalMs: 30000 });
+    
     // Setup signal handlers for graceful shutdown
-    setupSignalHandlers(servers);
+    setupSignalHandlers(servers, idleCheckInterval);
     
     return servers;
   });

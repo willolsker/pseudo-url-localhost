@@ -1,28 +1,29 @@
-# pseudo-url-localhost
+# Nextium
 
-Map custom pseudo-URLs to your localhost development servers with ease! Never type `localhost:3000` again.
+> Local serverless management for Next.js projects with on-demand process management
+
+Never type `localhost:3000` again. Nextium is your local mini-Vercel for development - manage Next.js projects with custom `.nextium` domains, automatic on-demand startup, and intelligent idle shutdown to minimize resource usage.
 
 ## Features
 
-- 🚀 Map custom domains (like `myapp.local`) to localhost ports
-- 🔄 Built-in proxy server to route requests
-- 🔒 HTTPS support with automatic SSL certificate generation (via mkcert)
-- 📝 Automatic hosts file management
-- 💻 Simple CLI interface
-- 🎯 Works with any local development server
-- ⚡ Run serverless architectures locally with proper domain routing
-- 🛠️ Easy configuration management
-- ✅ Enable Chrome's HTTP-only features (geolocation, camera, service workers, etc.)
+- 🚀 **On-Demand Process Management** - Next.js dev servers start automatically when accessed
+- 💤 **Intelligent Idle Shutdown** - Conserves resources by stopping inactive projects
+- 🌐 **Custom .nextium Domains** - Access projects at memorable URLs like `myapp.nextium`
+- 🔒 **Built-in HTTPS** - Automatic SSL certificates via mkcert
+- ⚡ **Zero Configuration** - Auto-detects Next.js projects and available ports
+- 🎯 **Project Isolation** - Each project runs independently with its own process
+- 💻 **Simple CLI** - Intuitive commands for project management
+- 🔄 **Auto-Restart** - Projects restart on file changes (via Next.js dev server)
 
 ## Installation
 
 ```bash
-npm install -g pseudo-url-localhost
+npm install -g nextium
 ```
 
 ## Quick Start
 
-1. **Install mkcert** (for HTTPS support - optional but recommended):
+1. **Install mkcert** (for HTTPS support - recommended):
 
 ```bash
 # macOS
@@ -31,500 +32,439 @@ mkcert -install
 
 # Linux
 # See: https://github.com/FiloSottile/mkcert#installation
-# or run: pseudo-url cert-install
 
 # Windows
 choco install mkcert
 mkcert -install
 ```
 
-2. **Add a mapping** (map a domain to a port):
+2. **Navigate to your Next.js project**:
 
 ```bash
-pseudo-url add myapp.local 3000
+cd my-nextjs-project
 ```
 
-3. **Start the proxy server** (requires sudo for ports 80/443):
+3. **Run the setup wizard**:
 
 ```bash
-sudo pseudo-url start
+nextium create
 ```
 
-4. **Access your app** at `https://myapp.local` (or `http://myapp.local`)
+You'll be prompted to choose a domain name (e.g., `myapp.nextium`). Nextium will:
 
-## Running as a System Service (Recommended)
+- Create a `nextium.config.js` file
+- Register your project
+- Update your hosts file
+- Generate SSL certificates
 
-For the best experience, install pseudo-url as a system service that runs automatically on startup:
+4. **Start the Nextium daemon** (requires sudo for ports 80/443):
 
 ```bash
-sudo pseudo-url service install
+sudo nextium start
 ```
 
-**Benefits:**
+5. **Access your app** at `https://myapp.nextium`
 
-- ✓ Starts automatically on boot
-- ✓ Runs in background (no terminal needed)
-- ✓ Auto-restarts if it crashes
-- ✓ Automatically reloads when you add/remove domains
-- ✓ Zero downtime configuration updates
-
-**Service Management:**
-
-```bash
-pseudo-url service status          # Check if running
-pseudo-url service logs             # View logs
-pseudo-url service restart          # Restart service
-sudo pseudo-url service reinstall   # Update after npm upgrade
-```
-
-**Daily Usage with Service:**
-
-```bash
-# Just add mappings - they work immediately!
-pseudo-url add myapp.local 3000    # No restart needed
-pseudo-url add api.local 8080      # Works instantly
-
-# Check your mappings
-pseudo-url list
-```
-
-**See [SERVICE.md](SERVICE.md) for complete documentation.**
-
-## Usage
-
-### Add a Domain Mapping
-
-Map a custom domain to a localhost port:
-
-```bash
-# Interactive mode
-pseudo-url add
-
-# With arguments
-pseudo-url add myapp.local 3000
-pseudo-url add api.local 8080
-pseudo-url add admin.local 4000
-```
-
-### List All Mappings
-
-View all configured domain mappings:
-
-```bash
-pseudo-url list
-# or
-pseudo-url ls
-```
-
-### Remove a Mapping
-
-Remove a specific domain mapping:
-
-```bash
-# Interactive mode
-pseudo-url remove
-
-# With argument
-pseudo-url remove myapp.local
-# or
-pseudo-url rm myapp.local
-```
-
-### Clear All Mappings
-
-Remove all configured mappings:
-
-```bash
-pseudo-url clear
-# Skip confirmation
-pseudo-url clear -y
-```
-
-### Start the Proxy Server
-
-Start the proxy server to route requests:
-
-```bash
-# Default port (80)
-sudo pseudo-url start
-
-# Custom port (doesn't require sudo for ports >= 1024)
-pseudo-url start -p 8080
-
-# Then access your apps at:
-# http://myapp.local:8080
-```
-
-### Sync Hosts File
-
-Manually synchronize the hosts file with current mappings:
-
-```bash
-sudo pseudo-url sync
-```
-
-### Set Default Proxy Port
-
-Change the default proxy port:
-
-```bash
-pseudo-url port 8080
-```
-
-### View Status
-
-Check current configuration and status:
-
-```bash
-pseudo-url status
-```
-
-### HTTPS / SSL Certificate Management
-
-#### Check Certificate Status
-
-View mkcert installation and certificate status:
-
-```bash
-pseudo-url cert-status
-```
-
-#### Install mkcert
-
-Get installation instructions for mkcert:
-
-```bash
-pseudo-url cert-install
-```
-
-#### Regenerate Certificates
-
-Manually regenerate SSL certificates for all configured domains:
-
-```bash
-pseudo-url cert-regenerate
-```
-
-**Note**: Certificates are automatically generated when you:
-
-- Add a new domain mapping (with sudo)
-- Start the proxy server
-- Remove a domain mapping (with sudo)
-
-#### Delete Certificates
-
-Remove all generated SSL certificates:
-
-```bash
-pseudo-url cert-delete
-```
-
-#### Disable HTTPS
-
-Start the proxy with HTTP only:
-
-```bash
-sudo pseudo-url start --no-https
-```
+Your Next.js dev server will start automatically on first access! When idle for 5 minutes, it will automatically stop to conserve resources.
 
 ## How It Works
 
-`pseudo-url-localhost` consists of four main components:
+Nextium acts as a local serverless platform for development:
 
-1. **Configuration Management**: Stores your domain-to-port mappings in `~/.pseudo-url/config.json`
+1. **HTTP Proxy**: Runs on ports 80/443 and routes requests to your projects
+2. **Process Manager**: Starts/stops Next.js dev servers on-demand
+3. **Smart Scheduling**: Tracks access patterns and idles out unused projects
+4. **Domain Routing**: Maps `.nextium` domains to running processes via hosts file
 
-2. **Hosts File Integration**: Automatically adds entries to your system's hosts file (requires sudo) to map custom domains to `127.0.0.1`
+**On First Request:**
 
-3. **SSL Certificate Management**: Uses mkcert to generate locally-trusted SSL certificates for all configured domains, stored in `~/.pseudo-url/certs/`
-
-4. **Proxy Server**: Runs both HTTP (port 80) and HTTPS (port 443) proxies that route requests from your custom domains to the appropriate localhost ports
-
-## HTTPS Support
-
-HTTPS support is automatically enabled when mkcert is installed. This allows you to:
-
-- Use Chrome's HTTP-only features (geolocation, camera, microphone, service workers, etc.)
-- Test HTTPS-specific functionality in your applications
-- Avoid browser security warnings for modern web features
-- Match production environments more closely
-
-### Why mkcert?
-
-[mkcert](https://github.com/FiloSottile/mkcert) is a simple tool for making locally-trusted development certificates. It automatically creates and installs a local Certificate Authority (CA) in your system trust store, so the certificates it generates are trusted by your browser without any manual configuration.
-
-### HTTPS Features Enabled
-
-With HTTPS support, you can now use Chrome features that require a secure context:
-
-- 📍 Geolocation API
-- 📷 Camera & Microphone access (getUserMedia)
-- 🔔 Push Notifications
-- 🔄 Service Workers & Progressive Web Apps (PWAs)
-- 🗄️ Storage APIs (IndexedDB, LocalStorage with some restrictions)
-- 🔐 Crypto API
-- 📡 WebRTC
-- 🌐 HTTP/2 and HTTP/3
-
-## Example Workflow
-
-Let's say you're developing multiple applications:
-
-```bash
-# Add mappings
-pseudo-url add frontend.local 3000
-pseudo-url add backend.local 8000
-pseudo-url add database-admin.local 5432
-
-# Sync hosts file (one time)
-sudo pseudo-url sync
-
-# Start proxy server
-sudo pseudo-url start
+```
+Browser → https://myapp.nextium
+         ↓
+    Nextium Proxy (detects no server running)
+         ↓
+    Starts `npm run dev` for project
+         ↓
+    Waits for "ready" signal
+         ↓
+    Proxies request to localhost:3000
+         ↓
+    Your Next.js app!
 ```
 
-Now you can access:
+**Subsequent Requests:** Instant proxy to already-running server
 
-- `http://frontend.local` → `http://localhost:3000`
-- `http://backend.local` → `http://localhost:8000`
-- `http://database-admin.local` → `http://localhost:5432`
-
-## Serverless Development
-
-`pseudo-url-localhost` is perfect for running serverless architectures locally with proper domain routing. Map your serverless functions to custom domains just like production.
-
-### AWS SAM / Serverless Framework
-
-```bash
-# Start your serverless app locally (default port 3000)
-serverless offline start
-
-# Map it to a custom domain
-pseudo-url add api.serverless.local 3000
-sudo pseudo-url sync
-sudo pseudo-url start
-
-# Access at http://api.serverless.local/function-name
-```
-
-### AWS Lambda with LocalStack
-
-```bash
-# Start LocalStack (default port 4566)
-localstack start
-
-# Map Lambda endpoints
-pseudo-url add lambda.local 4566
-sudo pseudo-url sync
-sudo pseudo-url start
-
-# Access Lambda functions at http://lambda.local
-```
-
-### Netlify Dev
-
-```bash
-# Start Netlify Dev (default port 8888)
-netlify dev
-
-# Map to custom domain
-pseudo-url add myapp.netlify.local 8888
-sudo pseudo-url sync
-sudo pseudo-url start
-
-# Access at http://myapp.netlify.local
-```
-
-### Vercel Dev
-
-```bash
-# Start Vercel dev server (default port 3000)
-vercel dev
-
-# Map to custom domain
-pseudo-url add myapp.vercel.local 3000
-sudo pseudo-url sync
-sudo pseudo-url start
-
-# Access at http://myapp.vercel.local
-```
-
-### Azure Functions
-
-```bash
-# Start Azure Functions locally (default port 7071)
-func start
-
-# Map to custom domain
-pseudo-url add functions.azure.local 7071
-sudo pseudo-url sync
-sudo pseudo-url start
-
-# Access at http://functions.azure.local/api/function-name
-```
-
-### Multi-Service Serverless Architecture
-
-```bash
-# Map multiple serverless services
-pseudo-url add auth.local 3001      # Auth service
-pseudo-url add api.local 3002       # API Gateway
-pseudo-url add webhooks.local 3003  # Webhook handlers
-pseudo-url add admin.local 3004     # Admin functions
-
-sudo pseudo-url sync
-sudo pseudo-url start
-
-# Now your microservices architecture works with proper domains
-# http://auth.local
-# http://api.local
-# http://webhooks.local
-# http://admin.local
-```
-
-### Benefits for Serverless Development
-
-- **Production-like URLs**: Test with real domain names instead of `localhost:port`
-- **CORS Testing**: Properly test cross-origin requests between services
-- **Webhook Development**: Provide clean URLs for webhook testing
-- **API Gateway Simulation**: Mimic cloud provider routing locally
-- **Microservices**: Manage multiple serverless functions with distinct domains
-- **Environment Parity**: Closer to production configuration during development
-- **Context Switching**: Dramatically improves developer convenience when switching between multiple serverless projects - memorable domain names (like `auth.local`, `api.local`) are much easier to remember and access than port numbers (`localhost:3001`, `localhost:3002`), reducing cognitive load and speeding up development workflow
-
-## Tips for Daily Use
-
-1. **Use `.local` domains**: They're recognized as local-only and won't conflict with real websites
-
-2. **Descriptive names**: Use clear names like `projectname-frontend.local` instead of just `app.local`
-
-3. **Keep proxy running**: You can leave the proxy running in a background process or terminal tab
-
-4. **One-time sync**: You only need to run `sudo pseudo-url sync` when you add/remove mappings, not every time you start the proxy
-
-5. **Share with team**: Your team members can use the same domain names for consistency across development environments
-
-6. **Verify setup**: After adding mappings, test with `curl http://localhost:PORT` first, then test the custom domain
-
-## Port Requirements
-
-- **Port 80** (default): Requires `sudo` to run the proxy server
-- **Ports >= 1024**: Can run without `sudo` (e.g., `pseudo-url start -p 8080`)
-- You'll need to access your apps with the port number: `http://myapp.local:8080`
-
-## Permissions
-
-### Hosts File Modification
-
-Modifying the hosts file requires elevated permissions (sudo). The hosts file locations:
-
-- **macOS/Linux**: `/etc/hosts`
-- **Windows**: `C:\Windows\System32\drivers\etc\hosts`
-
-### Backup
-
-The tool automatically backs up your hosts file to `~/.pseudo-url/hosts.backup` before making changes.
+**After 5 Minutes Idle:** Process automatically stopped, resources freed
 
 ## Configuration
 
-Configuration is stored in: `~/.pseudo-url/config.json`
+When you run `nextium create`, a `nextium.config.js` file is created in your project:
 
-Example configuration:
+```javascript
+module.exports = {
+  // Your custom .nextium domain
+  domain: "myapp.nextium",
 
-```json
-{
-  "mappings": {
-    "myapp.local": 3000,
-    "api.local": 8080
+  // Port configuration
+  // 'auto' = automatically find available port (3000-3999)
+  // Or specify a port number
+  port: "auto",
+
+  // Idle timeout configuration
+  idle: {
+    timeoutMs: 300000, // 5 minutes (in milliseconds)
   },
-  "proxyPort": 80
-}
+};
+```
+
+## Commands
+
+### Project Management
+
+```bash
+# Setup a new Next.js project
+nextium create
+
+# List all registered projects and their status
+nextium ps
+
+# View logs for a project
+nextium logs myapp.nextium
+
+# Manually start a project (background)
+nextium start myapp.nextium
+
+# Manually stop a project
+nextium stop myapp.nextium
+
+# Restart a project
+nextium restart myapp.nextium
+
+# Remove a project from Nextium
+nextium remove myapp.nextium
+```
+
+### Development Mode
+
+Run a project in the foreground with live log streaming:
+
+```bash
+nextium dev myapp.nextium
+```
+
+**Options:**
+
+- `--attach` - Attach to existing process without restarting
+- `--restart` - Force restart even if already running
+- `--detach` - Keep server running after exit (returns to managed mode)
+- `--stop` - Stop server when exiting (default)
+- `--port <port>` - Override configured port
+- `--no-prompt` - Use defaults for all prompts
+
+**Example:**
+
+```bash
+# Run with live logs, restart if needed
+nextium dev myapp.nextium --restart
+
+# Attach to running process and keep it running after exit
+nextium dev myapp.nextium --attach --detach
+```
+
+### Daemon Management
+
+```bash
+# Start the Nextium daemon (required for automatic startup)
+sudo nextium start
+
+# Check daemon status
+nextium status
+
+# Sync hosts file manually
+sudo nextium sync
+```
+
+### System Service (Recommended)
+
+Install Nextium as a system service that runs automatically on startup:
+
+```bash
+sudo nextium service install
+```
+
+**Service Commands:**
+
+```bash
+nextium service status     # Check if running
+nextium service logs       # View service logs
+nextium service restart    # Restart service
+nextium service stop       # Stop service
+nextium service reinstall  # Update after npm upgrade
+```
+
+### Certificate Management
+
+```bash
+# Check certificate status
+nextium cert-status
+
+# Get mkcert installation instructions
+nextium cert-install
+
+# Regenerate certificates for all projects
+nextium cert-regenerate
+
+# Delete generated certificates
+nextium cert-delete
+```
+
+## Example Workflow
+
+```bash
+# Terminal 1: Start the Nextium daemon
+sudo nextium start
+
+# Terminal 2: Setup your first project
+cd ~/projects/my-store
+nextium create
+# Choose domain: store.nextium
+
+# Terminal 2: Setup another project
+cd ~/projects/my-blog
+nextium create
+# Choose domain: blog.nextium
+
+# Now access:
+# https://store.nextium  (auto-starts on first visit)
+# https://blog.nextium   (auto-starts on first visit)
+
+# Check what's running
+nextium ps
+# Shows which projects are active and which are idle
+
+# Manually start a project
+nextium start store.nextium
+
+# Watch logs in real-time
+nextium dev blog.nextium
+```
+
+## Multi-Project Development
+
+Nextium shines when working on multiple projects:
+
+```bash
+# Register all your projects
+cd ~/projects/frontend && nextium create
+cd ~/projects/backend && nextium create
+cd ~/projects/admin && nextium create
+
+# Start daemon once
+sudo nextium start
+
+# Access any project instantly:
+# https://frontend.nextium
+# https://backend.nextium
+# https://admin.nextium
+
+# Only active projects consume resources!
+nextium ps
+# Shows:
+# frontend.nextium  [RUNNING]  (last access: 2s ago)
+# backend.nextium   [RUNNING]  (last access: 10s ago)
+# admin.nextium     [STOPPED]  (idle)
+```
+
+## Configuration Directory
+
+Nextium stores its configuration in `~/.nextium/`:
+
+```
+~/.nextium/
+├── config.json           # Global daemon configuration
+├── projects.json         # Registered projects registry
+├── processes.json        # Running processes state
+├── hosts.backup          # Backup of original hosts file
+└── certs/               # SSL certificates
+    ├── cert.pem
+    └── key.pem
 ```
 
 ## Troubleshooting
 
-### Permission Errors
+### Project Not Starting
 
-If you get permission errors:
+1. Check if Next.js project is valid:
 
-- Run with `sudo` for operations that modify the hosts file or use port 80
-- Or use a port >= 1024: `pseudo-url start -p 8080`
+   ```bash
+   cd your-project
+   npm run dev  # Does this work?
+   ```
 
-### Port Already in Use
+2. Check Nextium daemon is running:
 
-If port 80 is already in use:
+   ```bash
+   nextium status
+   ```
 
-- Stop the conflicting service, or
-- Use a different port: `pseudo-url port 8080`
+3. View project logs:
+   ```bash
+   nextium logs myapp.nextium
+   ```
 
 ### Domain Not Resolving
 
-1. Make sure you've run `sudo pseudo-url sync`
-2. Check that the entry exists in your hosts file: `cat /etc/hosts | grep pseudo-url`
-3. Try flushing your DNS cache:
-   - macOS: `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`
-   - Linux: `sudo systemd-resolve --flush-caches`
-   - Windows: `ipconfig /flushdns`
+1. Verify hosts file was updated:
 
-### Proxy Not Working
+   ```bash
+   cat /etc/hosts | grep nextium
+   ```
 
-1. Make sure the proxy server is running: `sudo pseudo-url start`
-2. Check that your development server is running on the mapped port
-3. View status: `pseudo-url status`
+2. Flush DNS cache:
 
-## Development Mode
+   ```bash
+   # macOS
+   sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder
 
-If you're contributing to pseudo-url itself, use development mode:
+   # Linux
+   sudo systemd-resolve --flush-caches
+   ```
 
-```bash
-cd pseudo-url-localhost
-sudo pseudo-url dev
+3. Manually sync hosts file:
+   ```bash
+   sudo nextium sync
+   ```
+
+### Port Conflicts
+
+If a port is already in use, Nextium will automatically allocate a different port when using `port: "auto"`. To use a specific port:
+
+```javascript
+// nextium.config.js
+module.exports = {
+  domain: "myapp.nextium",
+  port: 3001, // Specific port instead of 'auto'
+  idle: {
+    timeoutMs: 300000,
+  },
+};
 ```
 
-This will:
+### Permission Errors
 
-- Stop the system service temporarily
-- Run the proxy with auto-reload (nodemon)
-- Automatically restart the service when you exit
+Nextium requires sudo for:
 
-Perfect for developing and testing changes. When you're done, run `sudo pseudo-url service reinstall` to install your changes to the system service.
+- Starting the daemon (ports 80/443)
+- Modifying the hosts file
+- Generating SSL certificates
 
-## Security Notes
+```bash
+# Always use sudo for these commands:
+sudo nextium start
+sudo nextium sync
+sudo nextium service install
+```
 
-### System Service Security
+## Resource Management
 
-When running as a system service, pseudo-url:
+Nextium is designed to be resource-efficient:
+
+- **Daemon**: Lightweight proxy (~20-50 MB RAM)
+- **Idle Projects**: No resources consumed
+- **Active Projects**: Normal Next.js dev server overhead (~200-500 MB RAM each)
+- **Automatic Cleanup**: Projects idle out after 5 minutes (configurable)
+
+**Example Resource Usage:**
+
+```
+5 registered projects, 2 active:
+- Nextium Daemon:     45 MB
+- Project A (active): 320 MB
+- Project B (active): 280 MB
+- Project C-E (idle): 0 MB
+Total: ~645 MB (vs ~1.6 GB if all were running)
+```
+
+## Security Considerations
 
 - **Runs as root** (required for ports 80/443)
 - **Only listens on localhost** (127.0.0.1) - not exposed to network
-- **Validates configuration** for malicious domains/ports
-- **Rate limits** requests (1000/min per domain)
-- **Auto-checks** file permissions and warns if insecure
-
-### Best Practices
-
-1. **Keep dependencies updated**: `npm update -g pseudo-url-localhost`
-2. **Monitor logs**: `pseudo-url service logs` for unusual activity
-3. **Review mappings**: `pseudo-url list` regularly
-4. **Use HTTPS**: Install mkcert for secure local development
-5. **Restrict config access**: Ensure `~/.pseudo-url/config.json` is not world-writable
-
-See [SERVICE.md](SERVICE.md#security-considerations) for detailed security information.
+- **SSL certificates are locally-trusted only** (via mkcert)
+- **No external network access** required
+- **Configuration files are local** (~/.nextium/)
 
 ## Cleanup
 
-To completely remove all pseudo-url configurations:
+To completely remove Nextium:
 
 ```bash
 # Uninstall service (if installed)
-sudo pseudo-url service uninstall
+sudo nextium service uninstall
 
-# Clear all mappings and sync
-pseudo-url clear
-sudo pseudo-url sync
+# Remove all projects
+nextium remove --all
 
-# Manually remove config directory
-rm -rf ~/.pseudo-url
+# Sync hosts file to remove domains
+sudo nextium sync
+
+# Uninstall globally
+npm uninstall -g nextium
+
+# Remove configuration
+rm -rf ~/.nextium
 ```
+
+## Why Nextium?
+
+**Before Nextium:**
+
+```bash
+# Terminal 1
+cd ~/projects/store
+npm run dev
+# Running on http://localhost:3000
+
+# Terminal 2
+cd ~/projects/blog
+npm run dev
+# Error: Port 3000 already in use
+# Running on http://localhost:3001
+
+# Terminal 3
+cd ~/projects/admin
+npm run dev
+# Running on http://localhost:3002
+
+# Which port was which again? 🤔
+# 3 terminals, 3 processes, ~1.5 GB RAM always running
+```
+
+**With Nextium:**
+
+```bash
+# Terminal 1
+sudo nextium start
+
+# Access any project instantly:
+# https://store.nextium
+# https://blog.nextium
+# https://admin.nextium
+
+# Only 1-2 projects actually running at any time
+# Automatic cleanup when idle
+# Memorable domain names
+# Single command to rule them all! 🎉
+```
+
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for planned features including:
+
+- Hybrid smart detection (file watcher + HTTP triggers)
+- Custom proxy solutions (DNS server, Caddy integration)
+- Multi-framework support
+- Cloud deployment integration
+- Team collaboration features
 
 ## License
 
@@ -532,8 +472,8 @@ MIT
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## Support
 
-If you encounter any issues or have questions, please file an issue on the GitHub repository.
+If you encounter issues or have questions, please file an issue on GitHub.

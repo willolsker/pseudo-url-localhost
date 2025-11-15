@@ -30,11 +30,476 @@ const {
   ensureCertificates,
   deleteCertificates
 } = require('../src/certificates');
+const {
+  isNextJsProject,
+  writeProjectConfig,
+  getDefaultProjectConfig,
+  registerProject,
+  suggestDomainName,
+  isDomainRegistered,
+  getAllProjects,
+  unregisterProject,
+  getProject
+} = require('../src/project-config');
+const {
+  getAllProcesses,
+  getProcessInfo,
+  startDevServer,
+  stopDevServer,
+  restartDevServer
+} = require('../src/process-manager');
 
 program
-  .name('pseudo-url')
-  .description('Map custom pseudo-URLs to your localhost development servers')
+  .name('nextium')
+  .description('Local serverless management for Next.js projects')
   .version('1.0.0');
+
+/**
+ * Create/setup a Next.js project with Nextium
+ */
+program
+  .command('create')
+  .description('Setup a Next.js project with Nextium (run in project directory)')
+  .action(async () => {
+    try {
+      const projectPath = process.cwd();
+      
+      // Check if in a Next.js project
+      if (!isNextJsProject(projectPath)) {
+        console.log(chalk.red('✗ Not a Next.js project'));
+        console.log(chalk.yellow('This directory doesn\'t appear to contain a Next.js project.'));
+        console.log(chalk.gray('Make sure you have a package.json with "next" as a dependency.'));
+        process.exit(1);
+      }
+      
+      console.log(chalk.green('✓ Detected Next.js project'));
+      console.log('');
+      
+      // Suggest domain name
+      const suggestedDomain = suggestDomainName(projectPath);
+      
+      // Prompt for domain name
+      const { domain } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'domain',
+          message: 'What domain would you like to use?',
+          default: suggestedDomain,
+          validate: (input) => {
+            if (!input || input.trim() === '') {
+              return 'Domain name is required';
+            }
+            if (!input.endsWith('.nextium')) {
+              return 'Domain must end with .nextium (e.g., myproject.nextium)';
+            }
+            if (isDomainRegistered(input)) {
+              return `Domain ${input} is already registered`;
+            }
+            return true;
+          }
+        }
+      ]);
+      
+      const finalDomain = domain.trim();
+      
+      // Create configuration
+      const config = getDefaultProjectConfig(finalDomain);
+      
+      // Write nextium.config.js
+      writeProjectConfig(projectPath, config);
+      console.log(chalk.green('✓ Created nextium.config.js'));
+      
+      // Register project
+      registerProject(finalDomain, projectPath, config);
+      console.log(chalk.green('✓ Registered project'));
+      
+      // Update hosts file
+      if (!checkPermissions()) {
+        console.log(chalk.yellow('\n⚠ Need elevated permissions to update hosts file'));
+        console.log(chalk.yellow(`Please run: ${chalk.bold('sudo nextium sync')}`));
+      } else {
+        // Add domain to hosts via config
+        addMapping(finalDomain, 0); // Port doesn't matter for Nextium projects
+        const allMappings = getAllMappings();
+        updateHostsFile(allMappings);
+        console.log(chalk.green('✓ Updated hosts file'));
+        
+        // Generate SSL certificate
+        if (isMkcertInstalled() && isMkcertCAInstalled()) {
+          try {
+            const domains = Object.keys(allMappings);
+            const certResult = ensureCertificates(domains);
+            
+            if (certResult.success) {
+              console.log(chalk.green('✓ Generated SSL certificate'));
+            } else {
+              console.log(chalk.yellow('⚠ Warning: Could not generate SSL certificate'));
+              console.log(chalk.gray(`  ${certResult.message}`));
+            }
+          } catch (error) {
+            console.log(chalk.yellow('⚠ Warning: Could not generate SSL certificate'));
+            console.log(chalk.gray(`  ${error.message}`));
+          }
+        } else {
+          console.log(chalk.yellow('⚠ mkcert not installed - HTTPS will not be available'));
+          console.log(chalk.gray(`  Run ${chalk.bold('nextium cert-install')} for instructions`));
+        }
+      }
+      
+      // Success message
+      console.log('');
+      console.log(chalk.bold.green('✓ Setup complete!'));
+      console.log('');
+      console.log('Your project is ready. Start the Nextium daemon with:');
+      console.log(chalk.cyan(`  ${chalk.bold('sudo nextium start')}`));
+      console.log('');
+      console.log('Then access your project at:');
+      console.log(chalk.cyan(`  ${chalk.bold(`https://${finalDomain}`)}`));
+      console.log('');
+      console.log(chalk.gray('The dev server will start automatically on first access!'));
+      console.log('');
+      
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+/**
+ * List all registered projects and their status
+ */
+program
+  .command('ps')
+  .description('List all registered projects and their status')
+  .action(() => {
+    const projects = getAllProjects();
+    const processes = getAllProcesses();
+    
+    if (Object.keys(projects).length === 0) {
+      console.log(chalk.yellow('No projects registered.'));
+      console.log(chalk.cyan(`\nRun ${chalk.bold('nextium create')} in a Next.js project to get started.`));
+      return;
+    }
+    
+    console.log(chalk.bold('\nNextium Projects:\n'));
+    
+    Object.entries(projects).forEach(([domain, project]) => {
+      const processInfo = processes[domain];
+      
+      let status;
+      let details = '';
+      
+      if (processInfo) {
+        if (processInfo.state === 'running' || processInfo.state === 'manual') {
+          const mode = processInfo.mode === 'manual' ? ' (manual)' : '';
+          status = chalk.green(`● RUNNING${mode}`);
+          details = chalk.gray(` on port ${processInfo.port}, PID ${processInfo.pid}`);
+          
+          // Calculate idle time
+          const lastAccess = new Date(processInfo.lastAccess);
+          const now = new Date();
+          const idleSeconds = Math.floor((now - lastAccess) / 1000);
+          if (idleSeconds > 60) {
+            details += chalk.gray(`, idle ${Math.floor(idleSeconds / 60)}m`);
+          } else {
+            details += chalk.gray(`, active`);
+          }
+        } else if (processInfo.state === 'starting') {
+          status = chalk.yellow('◐ STARTING');
+          details = chalk.gray(` on port ${processInfo.port}`);
+        } else if (processInfo.state === 'stopping') {
+          status = chalk.yellow('◑ STOPPING');
+        } else {
+          status = chalk.gray('○ STOPPED');
+        }
+      } else {
+        status = chalk.gray('○ STOPPED');
+      }
+      
+      console.log(`  ${chalk.cyan(domain.padEnd(35))} ${status}${details}`);
+      console.log(chalk.gray(`    ${project.path}`));
+      console.log('');
+    });
+  });
+
+/**
+ * Stop a project
+ */
+program
+  .command('stop')
+  .description('Stop a running project')
+  .argument('<domain>', 'Project domain')
+  .action(async (domain) => {
+    try {
+      const project = getProject(domain);
+      if (!project) {
+        console.log(chalk.red(`✗ Project ${domain} not found`));
+        console.log(chalk.gray('Use nextium ps to see registered projects'));
+        process.exit(1);
+      }
+      
+      const processInfo = getProcessInfo(domain);
+      if (!processInfo || processInfo.state === 'stopped') {
+        console.log(chalk.yellow(`Project ${domain} is not running`));
+        return;
+      }
+      
+      console.log(`Stopping ${domain}...`);
+      await stopDevServer(domain);
+      console.log(chalk.green(`✓ Stopped ${domain}`));
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+/**
+ * Start a project
+ */
+program
+  .command('start')
+  .description('Start a project in background')
+  .argument('<domain>', 'Project domain')
+  .action(async (domain) => {
+    try {
+      const project = getProject(domain);
+      if (!project) {
+        console.log(chalk.red(`✗ Project ${domain} not found`));
+        console.log(chalk.gray('Use nextium ps to see registered projects'));
+        process.exit(1);
+      }
+      
+      const processInfo = getProcessInfo(domain);
+      if (processInfo && processInfo.state !== 'stopped') {
+        console.log(chalk.yellow(`Project ${domain} is already running`));
+        return;
+      }
+      
+      console.log(`Starting ${domain}...`);
+      const info = await startDevServer(domain);
+      console.log(chalk.green(`✓ Started ${domain} on port ${info.port}`));
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+/**
+ * Restart a project
+ */
+program
+  .command('restart')
+  .description('Restart a project')
+  .argument('<domain>', 'Project domain')
+  .action(async (domain) => {
+    try {
+      const project = getProject(domain);
+      if (!project) {
+        console.log(chalk.red(`✗ Project ${domain} not found`));
+        console.log(chalk.gray('Use nextium ps to see registered projects'));
+        process.exit(1);
+      }
+      
+      console.log(`Restarting ${domain}...`);
+      const info = await restartDevServer(domain);
+      console.log(chalk.green(`✓ Restarted ${domain} on port ${info.port}`));
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+/**
+ * Remove/unregister a project
+ */
+program
+  .command('remove')
+  .alias('rm')
+  .description('Remove a project from Nextium')
+  .argument('<domain>', 'Project domain')
+  .action(async (domain) => {
+    try {
+      const project = getProject(domain);
+      if (!project) {
+        console.log(chalk.red(`✗ Project ${domain} not found`));
+        process.exit(1);
+      }
+      
+      // Stop if running
+      const processInfo = getProcessInfo(domain);
+      if (processInfo && processInfo.state !== 'stopped') {
+        console.log('Stopping project...');
+        await stopDevServer(domain);
+      }
+      
+      // Remove from registry
+      unregisterProject(domain);
+      
+      // Remove from mappings
+      removeMapping(domain);
+      
+      console.log(chalk.green(`✓ Removed ${domain}`));
+      console.log(chalk.gray('Note: nextium.config.js in the project directory was not deleted'));
+      console.log(chalk.yellow('\nRun sudo nextium sync to update hosts file'));
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+/**
+ * View logs for a project (placeholder - would need log file implementation)
+ */
+program
+  .command('logs')
+  .description('View logs for a project')
+  .argument('<domain>', 'Project domain')
+  .option('-f, --follow', 'Follow log output')
+  .action((domain, options) => {
+    const project = getProject(domain);
+    if (!project) {
+      console.log(chalk.red(`✗ Project ${domain} not found`));
+      process.exit(1);
+    }
+    
+    const processInfo = getProcessInfo(domain);
+    if (!processInfo || processInfo.state === 'stopped') {
+      console.log(chalk.yellow(`Project ${domain} is not running`));
+      console.log(chalk.gray('Start it with: nextium start ' + domain));
+      return;
+    }
+    
+    console.log(chalk.cyan(`Logs for ${domain} (PID ${processInfo.pid}):`));
+    console.log(chalk.gray('Note: Log viewing will be enhanced in future versions'));
+    console.log(chalk.gray(`Project is running on port ${processInfo.port}`));
+  });
+
+/**
+ * Run a project in manual mode with live log streaming
+ */
+program
+  .command('dev')
+  .description('Run project in foreground with live logs (manual mode)')
+  .argument('<domain>', 'Project domain')
+  .option('--attach', 'Attach to existing process without restarting')
+  .option('--restart', 'Force restart even if already running')
+  .option('--detach, -d', 'Keep server running after exit (returns to managed mode)')
+  .option('--stop', 'Stop server when exiting (default)')
+  .option('--port <port>', 'Override configured port')
+  .option('--no-prompt', 'Use defaults for all prompts')
+  .action(async (domain, options) => {
+    try {
+      const project = getProject(domain);
+      if (!project) {
+        console.log(chalk.red(`✗ Project ${domain} not found`));
+        console.log(chalk.gray('Use nextium ps to see registered projects'));
+        process.exit(1);
+      }
+      
+      let processInfo = getProcessInfo(domain);
+      let shouldRestart = false;
+      let exitBehavior = 'stop'; // default
+      
+      // Handle existing process
+      if (processInfo && processInfo.state !== 'stopped') {
+        if (options.noPrompt) {
+          // Default: attach
+          if (options.restart) {
+            shouldRestart = true;
+          }
+        } else {
+          const { action } = await inquirer.prompt([
+            {
+              type: 'list',
+              name: 'action',
+              message: `Process is already running in background (PID ${processInfo.pid}). What would you like to do?`,
+              choices: [
+                { name: 'Attach to existing process (stream logs)', value: 'attach' },
+                { name: 'Stop and restart in foreground', value: 'restart' },
+                { name: 'Cancel', value: 'cancel' }
+              ],
+              default: 'attach'
+            }
+          ]);
+          
+          if (action === 'cancel') {
+            console.log(chalk.yellow('Cancelled.'));
+            return;
+          }
+          
+          shouldRestart = action === 'restart';
+        }
+        
+        if (shouldRestart || options.restart) {
+          console.log('Restarting...');
+          await stopDevServer(domain);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          processInfo = null;
+        }
+      }
+      
+      // Ask about exit behavior
+      if (!options.noPrompt && !options.detach && !options.stop) {
+        const { exit } = await inquirer.prompt([
+          {
+            type: 'list',
+            name: 'exit',
+            message: 'When you exit (Ctrl+C), should the server:',
+            choices: [
+              { name: 'Stop completely', value: 'stop' },
+              { name: 'Keep running in background', value: 'detach' }
+            ],
+            default: 'stop'
+          }
+        ]);
+        exitBehavior = exit;
+      } else if (options.detach) {
+        exitBehavior = 'detach';
+      }
+      
+      // Start or attach to process
+      if (!processInfo || processInfo.state === 'stopped') {
+        console.log(chalk.cyan(`Starting ${domain}...`));
+        processInfo = await startDevServer(domain, { manual: true, streamLogs: true });
+      }
+      
+      // Display info
+      console.log('');
+      console.log(chalk.bold('━'.repeat(60)));
+      console.log(chalk.bold(`  MANUAL MODE: ${domain}`));
+      console.log(`  PID: ${processInfo.pid} | Port: ${processInfo.port} | Idle timeout: DISABLED`);
+      console.log(`  Press Ctrl+C to ${exitBehavior === 'stop' ? 'stop' : 'detach'}`);
+      console.log(chalk.bold('━'.repeat(60)));
+      console.log('');
+      
+      // Handle Ctrl+C
+      const cleanup = async () => {
+        console.log('');
+        console.log(chalk.cyan('\nExiting manual mode...'));
+        
+        if (exitBehavior === 'stop') {
+          await stopDevServer(domain);
+          console.log(chalk.green(`✓ Stopped ${domain}`));
+        } else {
+          console.log(chalk.green(`✓ Detached from ${domain}`));
+          console.log(chalk.gray('Server is still running in background'));
+          console.log(chalk.gray(`View logs: nextium logs ${domain}`));
+        }
+        
+        process.exit(0);
+      };
+      
+      process.on('SIGINT', cleanup);
+      process.on('SIGTERM', cleanup);
+      
+      // Keep process alive
+      await new Promise(() => {}); // Never resolves, waits for SIGINT
+      
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
+    }
+  });
 
 /**
  * Add a new mapping
@@ -115,7 +580,7 @@ program
       // Update hosts file
       if (!checkPermissions()) {
         console.log(chalk.yellow('\n⚠ Warning: Need elevated permissions to update hosts file.'));
-        console.log(chalk.yellow(`Please run: ${chalk.bold('sudo pseudo-url sync')}`));
+        console.log(chalk.yellow(`Please run: ${chalk.bold('sudo nextium sync')}`));
       } else {
         const allMappings = getAllMappings();
         updateHostsFile(allMappings);
@@ -136,7 +601,7 @@ program
           }
         }
         
-        console.log(chalk.cyan(`\nRun ${chalk.bold('pseudo-url start')} to start the proxy server.`));
+        console.log(chalk.cyan(`\nRun ${chalk.bold('nextium start')} to start the proxy server.`));
       }
     } catch (error) {
       console.error(chalk.red('Error:'), error.message);
@@ -209,7 +674,7 @@ program
         }
       } else {
         console.log(chalk.yellow('\n⚠ Warning: Need elevated permissions to update hosts file.'));
-        console.log(chalk.yellow(`Please run: ${chalk.bold('sudo pseudo-url sync')}`));
+        console.log(chalk.yellow(`Please run: ${chalk.bold('sudo nextium sync')}`));
       }
     } catch (error) {
       console.error(chalk.red('Error:'), error.message);
@@ -229,7 +694,7 @@ program
     
     if (Object.keys(mappings).length === 0) {
       console.log(chalk.yellow('No mappings configured.'));
-      console.log(chalk.cyan(`\nUse ${chalk.bold('pseudo-url add')} to add a mapping.`));
+      console.log(chalk.cyan(`\nUse ${chalk.bold('nextium add')} to add a mapping.`));
       return;
     }
     
@@ -281,7 +746,7 @@ program
         console.log(chalk.green('✓ Cleaned up hosts file'));
       } else {
         console.log(chalk.yellow('\n⚠ Warning: Need elevated permissions to clean up hosts file.'));
-        console.log(chalk.yellow(`Please run: ${chalk.bold('sudo pseudo-url sync')}`));
+        console.log(chalk.yellow(`Please run: ${chalk.bold('sudo nextium sync')}`));
       }
     } catch (error) {
       console.error(chalk.red('Error:'), error.message);
@@ -304,7 +769,7 @@ program
       
       if (Object.keys(mappings).length === 0) {
         console.log(chalk.yellow('No mappings configured.'));
-        console.log(chalk.cyan(`Use ${chalk.bold('pseudo-url add')} to add a mapping first.`));
+        console.log(chalk.cyan(`Use ${chalk.bold('nextium add')} to add a mapping first.`));
         return;
       }
       
@@ -314,18 +779,18 @@ program
       
       if (httpPort < 1024 && process.getuid && process.getuid() !== 0) {
         console.log(chalk.yellow(`⚠ Warning: Port ${httpPort} requires elevated permissions.`));
-        console.log(chalk.yellow(`Run: ${chalk.bold(`sudo pseudo-url start`)}`));
-        console.log(chalk.cyan(`\nOr use a port >= 1024: ${chalk.bold('pseudo-url start -p 8080')}`));
+        console.log(chalk.yellow(`Run: ${chalk.bold(`sudo nextium start`)}`));
+        console.log(chalk.cyan(`\nOr use a port >= 1024: ${chalk.bold('nextium start -p 8080')}`));
         process.exit(1);
       }
       
       if (httpsPort < 1024 && enableHttps && process.getuid && process.getuid() !== 0) {
         console.log(chalk.yellow(`⚠ Warning: Port ${httpsPort} requires elevated permissions.`));
-        console.log(chalk.yellow(`Run: ${chalk.bold(`sudo pseudo-url start`)}`));
+        console.log(chalk.yellow(`Run: ${chalk.bold(`sudo nextium start`)}`));
         process.exit(1);
       }
       
-      console.log(chalk.cyan('Starting pseudo-url proxy server...\n'));
+      console.log(chalk.cyan('Starting nextium proxy server...\n'));
       
       // Check mkcert and certificates if HTTPS is enabled
       if (enableHttps) {
@@ -333,7 +798,7 @@ program
         
         if (!mkcertInstalled) {
           console.log(chalk.yellow('⚠ mkcert is not installed - starting in HTTP-only mode'));
-          console.log(chalk.gray(`  Run ${chalk.bold('pseudo-url cert-install')} for installation instructions\n`));
+          console.log(chalk.gray(`  Run ${chalk.bold('nextium cert-install')} for installation instructions\n`));
         } else {
           const mkcertCAInstalled = isMkcertCAInstalled();
           
@@ -380,7 +845,7 @@ program
     try {
       if (!checkPermissions()) {
         console.log(chalk.red('Error: Need elevated permissions to modify hosts file.'));
-        console.log(chalk.yellow(`Run: ${chalk.bold('sudo pseudo-url sync')}`));
+        console.log(chalk.yellow(`Run: ${chalk.bold('sudo nextium sync')}`));
         process.exit(1);
       }
       
@@ -485,13 +950,13 @@ program
     
     if (!mkcertInstalled) {
       console.log(chalk.yellow('⚠ mkcert not installed - HTTPS will not be available'));
-      console.log(chalk.cyan(`  Run ${chalk.bold('pseudo-url cert-install')} for installation instructions`));
+      console.log(chalk.cyan(`  Run ${chalk.bold('nextium cert-install')} for installation instructions`));
     } else if (!mkcertCAInstalled) {
       console.log(chalk.yellow('⚠ mkcert CA not installed - HTTPS will not work'));
       console.log(chalk.cyan(`  Run ${chalk.bold('mkcert -install')} to install the local CA`));
     } else if (!certs && Object.keys(mappings).length > 0) {
       console.log(chalk.yellow('⚠ Certificates not generated'));
-      console.log(chalk.cyan(`  Run ${chalk.bold('pseudo-url cert-regenerate')} to generate certificates`));
+      console.log(chalk.cyan(`  Run ${chalk.bold('nextium cert-regenerate')} to generate certificates`));
     }
   });
 
@@ -536,7 +1001,7 @@ program
         const mappings = getAllMappings();
         if (Object.keys(mappings).length > 0) {
           console.log(chalk.yellow('⚠ Certificates not generated. Run:'));
-          console.log(chalk.cyan('  pseudo-url cert-regenerate'));
+          console.log(chalk.cyan('  nextium cert-regenerate'));
           console.log('');
         } else {
           console.log(chalk.cyan('Add domain mappings first, then certificates will be generated automatically.'));
@@ -549,7 +1014,7 @@ program
     } else {
       console.log('');
       console.log(chalk.yellow('⚠ mkcert is not installed. Run:'));
-      console.log(chalk.cyan('  pseudo-url cert-install'));
+      console.log(chalk.cyan('  nextium cert-install'));
       console.log('');
     }
   });
@@ -581,7 +1046,7 @@ program
       } else {
         console.log(chalk.green('✓ Local CA is also installed!'));
         console.log('');
-        console.log(chalk.cyan('You\'re all set! Run ') + chalk.bold('pseudo-url start') + chalk.cyan(' to start the proxy with HTTPS.'));
+        console.log(chalk.cyan('You\'re all set! Run ') + chalk.bold('nextium start') + chalk.cyan(' to start the proxy with HTTPS.'));
       }
     } else {
       console.log(getMkcertInstallInstructions());
@@ -599,7 +1064,7 @@ program
     try {
       if (!isMkcertInstalled()) {
         console.log(chalk.red('Error: mkcert is not installed.'));
-        console.log(chalk.cyan(`Run ${chalk.bold('pseudo-url cert-install')} for installation instructions.`));
+        console.log(chalk.cyan(`Run ${chalk.bold('nextium cert-install')} for installation instructions.`));
         process.exit(1);
       }
       
@@ -614,7 +1079,7 @@ program
       
       if (domains.length === 0) {
         console.log(chalk.yellow('No domains configured.'));
-        console.log(chalk.cyan(`Use ${chalk.bold('pseudo-url add')} to add a domain first.`));
+        console.log(chalk.cyan(`Use ${chalk.bold('nextium add')} to add a domain first.`));
         return;
       }
       
@@ -678,13 +1143,13 @@ program
  */
 const serviceCommand = program
   .command('service')
-  .description('Manage pseudo-url as a system service');
+  .description('Manage nextium as a system service');
 
 /**
  * Helper function to check if service is installed
  */
 function isServiceInstalled() {
-  return fs.existsSync('/Library/LaunchDaemons/com.pseudo-url-localhost.plist');
+  return fs.existsSync('/Library/LaunchDaemons/com.nextium.plist');
 }
 
 /**
@@ -692,7 +1157,7 @@ function isServiceInstalled() {
  */
 function isServiceRunning() {
   try {
-    execSync('launchctl print system/com.pseudo-url-localhost', { stdio: 'pipe' });
+    execSync('launchctl print system/com.nextium', { stdio: 'pipe' });
     return true;
   } catch (error) {
     return false;
@@ -704,7 +1169,7 @@ function isServiceRunning() {
  */
 function getServiceInfo() {
   try {
-    const output = execSync('launchctl print system/com.pseudo-url-localhost', { 
+    const output = execSync('launchctl print system/com.nextium', { 
       encoding: 'utf8',
       stdio: 'pipe'
     });
@@ -731,12 +1196,12 @@ function getServiceInfo() {
  */
 serviceCommand
   .command('install')
-  .description('Install pseudo-url as a system service')
+  .description('Install nextium as a system service')
   .action(() => {
     try {
       if (isServiceInstalled()) {
         console.log(chalk.yellow('Service is already installed.'));
-        console.log(chalk.cyan('Use ') + chalk.bold('pseudo-url service reinstall') + chalk.cyan(' to reinstall.'));
+        console.log(chalk.cyan('Use ') + chalk.bold('nextium service reinstall') + chalk.cyan(' to reinstall.'));
         return;
       }
       
@@ -806,7 +1271,7 @@ serviceCommand
     if (!installed) {
       console.log('');
       console.log(chalk.cyan('Install the service with:'));
-      console.log(chalk.bold('  sudo pseudo-url service install'));
+      console.log(chalk.bold('  sudo nextium service install'));
       console.log('');
       return;
     }
@@ -824,14 +1289,14 @@ serviceCommand
       
       console.log('');
       console.log('Useful commands:');
-      console.log('  pseudo-url service logs      - View service logs');
-      console.log('  pseudo-url service restart   - Restart service');
-      console.log('  pseudo-url list              - Show all mappings');
+      console.log('  nextium service logs      - View service logs');
+      console.log('  nextium service restart   - Restart service');
+      console.log('  nextium list              - Show all mappings');
     } else {
       console.log('');
       console.log(chalk.yellow('Service is installed but not running.'));
       console.log(chalk.cyan('Start it with:'));
-      console.log(chalk.bold('  sudo pseudo-url service start'));
+      console.log(chalk.bold('  sudo nextium service start'));
     }
     
     console.log('');
@@ -848,28 +1313,28 @@ serviceCommand
       if (!isServiceInstalled()) {
         console.log(chalk.red('Error: Service is not installed.'));
         console.log(chalk.cyan('Install it first with:'));
-        console.log(chalk.bold('  sudo pseudo-url service install'));
+        console.log(chalk.bold('  sudo nextium service install'));
         process.exit(1);
       }
       
       if (isServiceRunning()) {
         console.log(chalk.yellow('Service is already running.'));
-        console.log(chalk.cyan('Use ') + chalk.bold('pseudo-url service restart') + chalk.cyan(' to restart it.'));
+        console.log(chalk.cyan('Use ') + chalk.bold('nextium service restart') + chalk.cyan(' to restart it.'));
         return;
       }
       
       console.log('Starting service...');
-      execSync('launchctl bootstrap system /Library/LaunchDaemons/com.pseudo-url-localhost.plist', { stdio: 'pipe' });
+      execSync('launchctl bootstrap system /Library/LaunchDaemons/com.nextium.plist', { stdio: 'pipe' });
       
       // Wait a moment
       setTimeout(() => {
         if (isServiceRunning()) {
           console.log(chalk.green('✓ Service started successfully'));
           console.log('');
-          console.log('View logs: ' + chalk.bold('pseudo-url service logs'));
+          console.log('View logs: ' + chalk.bold('nextium service logs'));
         } else {
           console.log(chalk.red('✗ Service failed to start'));
-          console.log('Check logs: cat /var/log/pseudo-url-localhost/stderr.log');
+          console.log('Check logs: cat /var/log/nextium/stderr.log');
         }
       }, 1000);
     } catch (error) {
@@ -897,11 +1362,11 @@ serviceCommand
       }
       
       console.log('Stopping service...');
-      execSync('launchctl bootout system/com.pseudo-url-localhost', { stdio: 'pipe' });
+      execSync('launchctl bootout system/com.nextium', { stdio: 'pipe' });
       console.log(chalk.green('✓ Service stopped'));
       console.log('');
       console.log(chalk.gray('Note: Service will not restart on boot until you run:'));
-      console.log(chalk.bold('  sudo pseudo-url service start'));
+      console.log(chalk.bold('  sudo nextium service start'));
       console.log('');
     } catch (error) {
       console.error(chalk.red('Failed to stop service:'), error.message);
@@ -920,7 +1385,7 @@ serviceCommand
       if (!isServiceInstalled()) {
         console.log(chalk.red('Error: Service is not installed.'));
         console.log(chalk.cyan('Install it first with:'));
-        console.log(chalk.bold('  sudo pseudo-url service install'));
+        console.log(chalk.bold('  sudo nextium service install'));
         process.exit(1);
       }
       
@@ -928,12 +1393,12 @@ serviceCommand
       
       // Stop if running
       if (isServiceRunning()) {
-        execSync('launchctl bootout system/com.pseudo-url-localhost', { stdio: 'pipe' });
+        execSync('launchctl bootout system/com.nextium', { stdio: 'pipe' });
         console.log(chalk.gray('✓ Service stopped'));
       }
       
       // Start
-      execSync('launchctl bootstrap system /Library/LaunchDaemons/com.pseudo-url-localhost.plist', { stdio: 'pipe' });
+      execSync('launchctl bootstrap system /Library/LaunchDaemons/com.nextium.plist', { stdio: 'pipe' });
       
       // Wait and verify
       setTimeout(() => {
@@ -941,7 +1406,7 @@ serviceCommand
           console.log(chalk.green('✓ Service restarted successfully'));
         } else {
           console.log(chalk.red('✗ Service failed to restart'));
-          console.log('Check logs: cat /var/log/pseudo-url-localhost/stderr.log');
+          console.log('Check logs: cat /var/log/nextium/stderr.log');
         }
       }, 1000);
     } catch (error) {
@@ -998,7 +1463,7 @@ serviceCommand
   .option('-e, --errors', 'Show only errors')
   .option('-n, --lines <number>', 'Number of lines to show', '50')
   .action((options) => {
-    const logDir = '/var/log/pseudo-url-localhost';
+    const logDir = '/var/log/nextium';
     
     if (!fs.existsSync(logDir)) {
       console.log(chalk.yellow('No logs found. Service may not be installed.'));
@@ -1064,7 +1529,7 @@ program
       // Check if we're in a directory with bin/cli.js
       const localCli = path.join(process.cwd(), 'bin', 'cli.js');
       if (!fs.existsSync(localCli)) {
-        console.log(chalk.red('Error: Must run from pseudo-url-localhost directory'));
+        console.log(chalk.red('Error: Must run from nextium directory'));
         console.log(chalk.gray('Development mode requires local source files.'));
         process.exit(1);
       }
@@ -1084,7 +1549,7 @@ program
       if (serviceWasRunning) {
         console.log(chalk.cyan('Stopping system service...'));
         try {
-          execSync('launchctl bootout system/com.pseudo-url-localhost', { stdio: 'pipe' });
+          execSync('launchctl bootout system/com.nextium', { stdio: 'pipe' });
           console.log(chalk.green('✓ Service stopped'));
         } catch (error) {
           console.log(chalk.yellow('Warning: Could not stop service (may not be running)'));
@@ -1108,17 +1573,17 @@ program
         if (serviceWasRunning) {
           console.log(chalk.cyan('Restarting system service...'));
           try {
-            execSync('launchctl bootstrap system /Library/LaunchDaemons/com.pseudo-url-localhost.plist', { stdio: 'pipe' });
+            execSync('launchctl bootstrap system /Library/LaunchDaemons/com.nextium.plist', { stdio: 'pipe' });
             console.log(chalk.green('✓ Service restarted'));
           } catch (error) {
             console.log(chalk.red('✗ Failed to restart service'));
-            console.log(chalk.yellow('Manually restart with: sudo pseudo-url service start'));
+            console.log(chalk.yellow('Manually restart with: sudo nextium service start'));
           }
         }
         
         console.log('');
         console.log(chalk.bold('To install your local changes to the system service:'));
-        console.log(chalk.cyan('  sudo pseudo-url service reinstall'));
+        console.log(chalk.cyan('  sudo nextium service reinstall'));
         console.log('');
         
         process.exit(0);

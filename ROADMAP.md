@@ -1,298 +1,362 @@
 # Roadmap
 
-This document outlines the planned features and improvements for pseudo-url-localhost.
+This document outlines the planned features and improvements for Nextium.
 
-## Version 2.0 - Core Enhancements
+## Version 2.0 - Enhanced Process Management
 
-### MCP (Model Context Protocol) Functionality
+### Hybrid Smart Detection
 
-- Implement MCP server integration for AI-assisted domain management
-- Enable natural language commands for adding/removing mappings
-- Provide intelligent suggestions for domain naming conventions
-- Add AI-powered conflict resolution and troubleshooting
-- MCP is also to let models know what endpoints are currently running in order to query them
+- **File Watcher Integration**
 
-### Tool for Managing Roadmaps in Code with AI Locally
+  - Monitor project directories for file changes
+  - Auto-start dev servers when files are modified
+  - Intelligent detection of active development sessions
+  - Reduce cold starts by predicting usage patterns
 
-- Build integrated roadmap management system
-- Allow AI to read, update, and track project roadmaps
-- Support local LLM integration for roadmap generation
-- Provide automated task breakdown and progress tracking
-- Enable context-aware feature planning
+- **Combined Triggers**
 
-## Version 3.0 - Desktop Integration
+  - HTTP request triggers (current implementation)
+  - File system activity detection
+  - Git activity monitoring (commits, branch changes)
+  - Editor/IDE integration signals
+  - Time-based predictions (e.g., usual work hours)
 
-### Desktop-wide Tool for Running, Managing, and Chatting with Local LLMs
+- **Smart Idle Detection**
+  - Multi-signal idle detection (no HTTP + no file changes)
+  - Configurable grace periods per project
+  - Smart shutdown prioritization (least recently used)
+  - Resource-aware scheduling (stop oldest when memory pressure)
 
-- Create system tray/menu bar application
-- Integrate local LLM management (Ollama, LM Studio, etc.)
-- Provide quick access to pseudo-url management via desktop app
-- Chat interface for natural language domain management
-- Real-time monitoring of proxy server and mappings
-- Visual dashboard for all localhost services
-- One-click proxy start/stop with system notifications
-- Integration with system preferences and startup items
+### Custom Proxy Solutions
 
-## Version 4.0 - Cloud & Sync Features
+Two advanced proxy architectures for improved performance and scalability:
 
-### Cloud and Self-Hosted Sync
+#### Option 1: Local DNS Nameserver
 
-- Cloud sync for domain configurations across machines
-- Support for self-hosted sync servers
-- End-to-end encryption for synced configurations
-- Team collaboration features (shared domain pools)
-- Version history and rollback capabilities
-- Conflict resolution for multi-device scenarios
-- API for programmatic access to configurations
-- Webhook support for CI/CD integration
+- **DNS Server Integration**
 
-## Version 5.0 - AI Agent Privacy & Security Management
+  - Run local DNS server for `*.nextium` resolution
+  - Eliminate hosts file management (no sudo needed for domain changes)
+  - Support true wildcard domains
+  - Faster domain resolution
+  - Better multi-user/multi-machine support
 
-### System-Wide AI Computer Use Agent Privacy/Security Framework
+- **Features**
+  - Zero-config DNS setup
+  - Dynamic DNS updates without system modifications
+  - Support for subdomains (api.myproject.nextium)
+  - Integration with system DNS resolver
+  - Fallback to hosts file if DNS not available
 
-A comprehensive security and privacy management system for AI agents with computer use capabilities, ensuring safe, transparent, and controlled AI interactions with system resources.
+#### Option 2: Caddy-based Reverse Proxy
 
-#### Core Security Features
+- **Caddy Integration**
 
-- **Permission System & Access Control**
+  - Use Caddy as the reverse proxy engine
+  - Automatic HTTPS without mkcert
+  - Better performance and HTTP/2 support
+  - Built-in load balancing
+  - Plugin ecosystem access
 
-  - Granular permission model for AI agent actions
-  - File system access control with allowlist/blocklist
-  - Network request permission management
-  - Process execution controls and restrictions
-  - Clipboard and system resource access gates
-  - Role-based access control (RBAC) for different AI agents
-  - Temporary permission grants with auto-expiry
-  - Permission inheritance and delegation rules
+- **Features**
+  - Automatic certificate management
+  - Advanced routing capabilities
+  - Better WebSocket support
+  - Metrics and monitoring built-in
+  - Configuration reload without downtime
 
-- **Audit Logging & Transparency**
+## Version 3.0 - Multi-Framework Support
 
-  - Comprehensive logging of all AI agent actions
-  - Real-time activity monitoring dashboard
-  - Detailed audit trails with timestamps and context
-  - Action categorization (read, write, execute, network)
-  - Export audit logs in multiple formats (JSON, CSV, SQLite)
-  - Integration with system logging frameworks
-  - Searchable and filterable audit history
-  - Alert system for suspicious or unauthorized activities
+### Beyond Next.js
 
-- **Sandboxing & Isolation**
-  - Containerized AI agent execution environments
-  - File system virtualization and isolation
-  - Network isolation with configurable egress rules
-  - Resource quotas (CPU, memory, disk, network)
-  - Process isolation and namespace separation
-  - Secure inter-process communication (IPC)
-  - Capability-based security model
-  - Rollback and snapshot capabilities for system state
+Currently Next.js focused, expand to support:
 
-#### Privacy Controls
+- **React Frameworks**
 
-- **Data Protection**
+  - Vite + React
+  - Create React App
+  - Remix
+  - Gatsby
 
-  - Sensitive data classification and masking
-  - PII (Personally Identifiable Information) detection and filtering
-  - Configurable data retention policies
-  - Automatic redaction of credentials and secrets
-  - Encryption at rest for logged data
-  - Secure credential storage and management
-  - Data minimization principles enforcement
-  - GDPR and privacy regulation compliance features
+- **Other Frameworks**
 
-- **User Consent & Control**
+  - Vue.js (Vite, Nuxt)
+  - Svelte (SvelteKit)
+  - Angular
+  - Solid.js
+  - Astro
+  - Qwik
 
-  - Explicit consent workflows for sensitive operations
-  - Just-in-time permission prompts with context
-  - Whitelist/blacklist management UI
-  - Emergency "kill switch" to stop all AI agents
-  - Per-application privacy settings
-  - User-defined security policies
-  - Parental/organizational controls
-  - Transparency reports for users
+- **Backend Frameworks**
+  - Express.js
+  - Fastify
+  - NestJS
+  - Hono
+  - Bun-based servers
 
-- **Voluntary Training Data Contribution (Opt-In)**
-  - Optional data sharing with AI labs and product developers
-  - Strictly opt-in basis with explicit user consent
-  - Human-in-the-loop conversation review and approval
-  - Rule-based filtering to include/exclude conversations
-    - Filter by conversation topic or content type
-    - Exclude conversations containing sensitive information
-    - Time-based filtering (e.g., only share recent conversations)
-    - Application-specific filtering rules
-    - Custom regex and keyword-based exclusion rules
-  - Conversation-level granular control
-    - Review individual conversations before submission
-    - Bulk approval/rejection with preview
-    - Edit or redact specific messages before sharing
-    - Annotate conversations with feedback
-  - Convenient management interface
-    - Visual conversation browser with filtering
-    - One-click approval/rejection workflows
-    - Batch operations with safety confirmations
-    - "Share with feedback" option for bug reports
-    - Preview exactly what will be shared
-  - Transparency and control features
-    - Clear disclosure of what data is shared
-    - View submission history and receipts
-    - Revoke previously submitted data (where possible)
-    - Export personal data contribution reports
-    - Configure automatic submission rules (still requiring periodic review)
-  - Privacy-preserving options
-    - Automatic PII redaction before submission
-    - Anonymization and pseudonymization options
-    - Local-only review (no cloud processing for filtering)
-    - Differential privacy techniques for sensitive data
-  - Developer/Lab integration
-    - Standardized API for receiving voluntary contributions
-    - Feedback loop: show users how their data improved models
-    - Contribution credits or recognition system (optional)
-    - Support for multiple AI labs/providers
+### Framework Detection
 
-#### Advanced Security Features
+- Auto-detect framework from package.json
+- Configurable dev commands per framework
+- Framework-specific ready detection patterns
+- Port auto-detection per framework defaults
+- Framework-specific configuration templates
 
-- **Threat Detection & Prevention**
+### Project Templates
 
-  - Anomaly detection for unusual AI behavior
-  - Rate limiting and throttling mechanisms
-  - Pattern recognition for malicious activities
-  - Integration with security scanning tools
-  - Real-time threat intelligence feeds
-  - Behavioral analysis and profiling
-  - Automated threat response and mitigation
-  - Security incident reporting and escalation
+- Pre-configured templates for popular stacks
+- Quick project scaffolding with `nextium init`
+- Template marketplace/registry
+- Custom template support
+- Multi-service templates (frontend + backend + DB)
 
-- **Compliance & Standards**
-  - Compliance frameworks (SOC 2, ISO 27001, etc.)
-  - Security policy templates and wizards
-  - Automated compliance checking and reporting
-  - Industry-specific security profiles
-  - Third-party security auditing support
-  - Certification and attestation features
-  - Regular security assessments and scoring
+## Version 4.0 - Cloud & Deployment Integration
 
-#### Developer & Admin Tools
+### Cloud Deployment
 
-- **Management Interface**
+- **One-Command Deploy**
 
-  - Centralized security dashboard
-  - Policy editor with visual workflow builder
-  - Real-time agent activity viewer
-  - Security analytics and insights
-  - Configuration backup and restore
-  - Multi-tenant administration support
-  - API for programmatic security management
-  - CLI tools for power users
+  - `nextium deploy` to push to production
+  - Vercel integration
+  - Netlify integration
+  - AWS (Amplify, ECS, Lambda)
+  - Fly.io support
+  - Railway support
 
-- **Integration & Extensibility**
-  - Plugin system for custom security rules
-  - Integration with SIEM (Security Information and Event Management) tools
-  - Webhook support for security events
-  - Custom authentication providers (OAuth, SAML, etc.)
-  - Integration with identity management systems
-  - Support for hardware security modules (HSM)
-  - SDKs for third-party security tool integration
+- **Environment Sync**
 
-#### Education & Documentation
+  - Sync environment variables between local and cloud
+  - Secrets management
+  - Multi-environment support (dev, staging, prod)
+  - Environment-specific configurations
 
-- **User Education**
+- **Preview Deployments**
+  - Create preview deployments from Nextium
+  - Share preview links
+  - Automatic cleanup of old previews
 
-  - Interactive security tutorials
-  - Best practices documentation
-  - Security awareness training modules
-  - Common threat scenario demonstrations
-  - Regular security tips and recommendations
-  - Community-driven security guidelines
+### Team Collaboration
 
-- **Technical Documentation**
-  - Security architecture documentation
-  - API security reference
-  - Threat modeling guidelines
-  - Incident response playbooks
-  - Security configuration examples
-  - Migration guides for security updates
+- **Shared Projects**
 
-## Version 6.0 - Multi-Platform Apps
+  - Share project configurations across team
+  - Team-wide domain registry
+  - Conflict resolution for shared domains
+  - Role-based access (admin, developer, viewer)
 
-### Mobile App
+- **Cloud Sync**
 
-- iOS and React Native mobile companion app
-- View and manage domain mappings remotely
-- Quick domain lookup and status checking
-- Push notifications for proxy server status
-- QR code sharing for quick domain setup
-- Mobile-friendly proxy configuration
-- Remote proxy control (start/stop via mobile)
+  - Sync configurations across machines
+  - Self-hosted sync server option
+  - End-to-end encryption
+  - Offline-first design
 
-### Web App
+- **Collaboration Features**
+  - Team activity feed
+  - Shared project templates
+  - Documentation integration
+  - Comment and annotation on projects
 
-- Full-featured web interface for domain management
-- Browser-based proxy configuration
-- Visual mapping editor with drag-and-drop
-- Real-time collaboration features
-- Analytics and usage statistics
-- Browser extension for quick access
-- Integration with popular development tools
-- Public domain registry (optional sharing)
+## Version 5.0 - Developer Experience Enhancements
 
-## Additional Features (Backlog)
+### IDE & Editor Integration
 
-### Security & Performance
+- **VS Code Extension**
 
-- HTTPS/SSL support with automatic certificate generation
-- WebSocket proxying support
-- HTTP/2 and HTTP/3 support
-- Request/response logging and inspection
-- Rate limiting and traffic shaping
-- Security scanning for proxy configurations
+  - Sidebar for project management
+  - Status bar indicators
+  - Command palette integration
+  - Integrated terminal for logs
+  - Quick actions (start/stop/restart)
 
-### Developer Experience
+- **Other Editors**
+  - JetBrains IDEs (WebStorm, IntelliJ)
+  - Cursor integration
+  - Vim/Neovim plugin
+  - Sublime Text plugin
 
-- VS Code extension
-- JetBrains IDE plugin
-- Docker integration and container domain mapping
-- Kubernetes support for local clusters
-- Automatic port detection and suggestions
-- Project-based configuration profiles
-- Git hooks for automatic domain setup
+### Advanced UI
 
-### Browser Integration & Compatibility
+- **Terminal UI (TUI)**
 
-- **Arc Browser Developer Mode** integration
-  - Native support for Arc's custom domain features
-  - Seamless integration with Arc Spaces and profiles
-  - Auto-sync domains to Arc's Developer Mode
-  - Arc Boost compatibility for enhanced local development
-- **Helium Browser** support
-  - Floating window integration for always-visible dev tools
-  - Quick domain switcher in Helium interface
-  - Picture-in-picture mode support for multiple localhost apps
-- **Browser Extension** (Chrome, Firefox, Edge, Safari, Brave)
-  - One-click domain management from any browser
-  - Quick access to running localhost services
-  - Visual indicator for active pseudo-URLs
-  - Context menu integration for quick copying
-- **Browser-specific features**
-  - Safari Technology Preview support
-  - Chromium DevTools integration
-  - Firefox Developer Edition optimizations
-  - Opera Developer/Beta channel support
+  - Interactive dashboard in terminal
+  - Real-time process monitoring
+  - Resource usage visualization
+  - Log streaming with filtering
+  - Keyboard shortcuts for all actions
 
-### Advanced Networking
+- **Web Dashboard**
+  - Browser-based control panel
+  - Visual project management
+  - Analytics and insights
+  - Request inspection and debugging
+  - Configuration editor
 
-- Pattern-based domain matching (wildcards)
-- Multiple proxy server support
-- Load balancing between multiple ports
-- Automatic failover and health checks
-- Custom routing rules and middleware
-- Plugin system for extensibility
+### Git Integration
+
+- **Git Hooks**
+
+  - Auto-register projects on clone
+  - Setup domains based on repo name
+  - Branch-specific domains (feature-x.myproject.nextium)
+  - Auto-start on branch checkout
+
+- **Monorepo Support**
+  - Multiple projects in one repo
+  - Shared configuration
+  - Workspace detection (npm, yarn, pnpm workspaces)
+  - Inter-project dependencies handling
+
+## Version 6.0 - MCP (Model Context Protocol) Functionality
+
+### AI-Assisted Development
+
+- **MCP Server Integration**
+
+  - Natural language commands for project management
+  - AI-powered domain suggestions
+  - Intelligent conflict resolution
+  - Automated troubleshooting
+
+- **Context Awareness**
+  - Let AI models know what endpoints are running
+  - Automatic API documentation generation
+  - Smart testing and debugging assistance
+  - Context-aware code suggestions
+
+### AI Features
+
+- **Intelligent Suggestions**
+
+  - Domain naming conventions
+  - Port allocation optimization
+  - Configuration recommendations
+  - Performance tuning
+
+- **Automated Tasks**
+  - Log analysis and error detection
+  - Automatic fixes for common issues
+  - Predictive maintenance
+  - Usage pattern analysis
+
+## Version 7.0 - Advanced Features
 
 ### Monitoring & Analytics
 
-- Request logging and analytics
-- Performance monitoring dashboard
-- Error tracking and alerting
-- Usage statistics and reports
-- Integration with monitoring tools (Datadog, New Relic, etc.)
+- **Performance Monitoring**
+
+  - Request/response tracking
+  - Performance metrics
+  - Resource usage monitoring
+  - Bottleneck detection
+
+- **Analytics Dashboard**
+  - Usage statistics per project
+  - Popular endpoints tracking
+  - Error rate monitoring
+  - Custom dashboards
+
+### Security & Compliance
+
+- **Enhanced Security**
+
+  - Request filtering and validation
+  - Rate limiting per project
+  - IP whitelisting
+  - Security audit logs
+
+- **Privacy Controls**
+  - Data anonymization
+  - GDPR compliance features
+  - Audit trail export
+  - Voluntary usage data contribution (opt-in)
+
+### Advanced Networking
+
+- **Load Balancing**
+
+  - Multiple instances per project
+  - Round-robin/least-connections
+  - Health checks
+  - Automatic failover
+
+- **Service Mesh**
+  - Inter-project communication
+  - Service discovery
+  - Traffic shaping
+  - Circuit breakers
+
+## Version 8.0 - Platform Expansion
+
+### Mobile & Desktop Apps
+
+- **Desktop Application**
+
+  - Native app (Electron or Tauri)
+  - System tray integration
+  - Notifications
+  - Quick access menu
+
+- **Mobile Companion**
+  - iOS/Android apps
+  - Remote management
+  - Status monitoring
+  - Push notifications
+
+### Container & Orchestration
+
+- **Docker Integration**
+
+  - Containerized services support
+  - Docker Compose integration
+  - Container lifecycle management
+  - Network bridge configuration
+
+- **Kubernetes Support**
+  - Local cluster management (Minikube, k3s)
+  - Service exposure
+  - Ingress configuration
+  - Development environments
+
+## Additional Features (Backlog)
+
+### Browser Integration
+
+- **Browser Extensions**
+
+  - Chrome, Firefox, Safari, Edge
+  - Quick domain access
+  - Status indicators
+  - One-click management
+
+- **Browser-Specific Features**
+  - Arc Browser Developer Mode integration
+  - Chromium DevTools integration
+  - Safari Technology Preview support
+
+### Advanced Routing
+
+- **Pattern Matching**
+
+  - Wildcard domains
+  - Regex-based routing
+  - Path-based routing
+  - Header-based routing
+
+- **Middleware**
+  - Custom middleware support
+  - Request/response transformation
+  - Authentication/authorization
+  - Caching strategies
+
+### Plugin System
+
+- **Extensibility**
+  - Plugin API
+  - Hook system
+  - Custom commands
+  - Third-party integrations
+  - Marketplace for plugins
 
 ## Contributing
 
@@ -304,12 +368,12 @@ If you have ideas for additional features, please open an issue for discussion.
 
 **Note:** This roadmap is aspirational and timelines are subject to change based on community feedback, contributions, and priorities.
 
-- **Q1 2025**: MCP functionality and local AI integration
-- **Q2 2025**: Desktop application development
-- **Q3 2025**: Cloud sync and self-hosted options
-- **Q4 2025**: AI Agent Privacy & Security Management framework
-- **Q1-Q2 2026**: Mobile and web app development
-- **2026+**: Advanced features and platform expansion
+- **Q1 2024**: Multi-framework support
+- **Q2 2024**: Custom proxy solutions (DNS/Caddy)
+- **Q3 2024**: Cloud deployment integration
+- **Q4 2024**: IDE integrations and advanced UI
+- **2025**: MCP functionality and AI features
+- **2026+**: Platform expansion and enterprise features
 
 ## Feedback
 
@@ -322,4 +386,4 @@ Your input shapes our roadmap! Please share your thoughts:
 
 ---
 
-_Last updated: November 15, 2025 (Added AI Agent Privacy & Security Management framework as Version 5.0)_
+_Last updated: November 15, 2025 (Rewritten for Nextium with focus on serverless development workflow)_

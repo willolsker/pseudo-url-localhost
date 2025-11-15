@@ -1,5 +1,5 @@
 #!/bin/bash
-# Uninstall pseudo-url system service
+# Uninstall nextium system service
 
 set -e
 
@@ -9,8 +9,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo "pseudo-url Service Uninstallation"
-echo "=================================="
+echo "Nextium Service Uninstallation"
+echo "==============================="
 echo ""
 
 # Must run as root
@@ -21,19 +21,19 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Check if service is installed
-if [ ! -f "/Library/LaunchDaemons/com.pseudo-url-localhost.plist" ]; then
+if [ ! -f "/Library/LaunchDaemons/com.nextium.plist" ]; then
     echo -e "${YELLOW}Service is not installed.${NC}"
     exit 0
 fi
 
 # Stop and unload service
 echo "Stopping service..."
-launchctl bootout system/com.pseudo-url-localhost 2>/dev/null || true
+launchctl bootout system/com.nextium 2>/dev/null || true
 echo -e "${GREEN}✓${NC} Service stopped"
 
 # Remove plist
 echo "Removing service configuration..."
-rm -f /Library/LaunchDaemons/com.pseudo-url-localhost.plist
+rm -f /Library/LaunchDaemons/com.nextium.plist
 echo -e "${GREEN}✓${NC} Service configuration removed"
 
 # Ask about logs
@@ -41,18 +41,18 @@ echo ""
 read -p "Remove log files? (y/N) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    rm -rf /var/log/pseudo-url-localhost
+    rm -rf /var/log/nextium
     echo -e "${GREEN}✓${NC} Logs removed"
 else
-    echo "Logs preserved at /var/log/pseudo-url-localhost"
+    echo "Logs preserved at /var/log/nextium"
 fi
 
 echo ""
 echo -e "${GREEN}✓ Service uninstalled successfully${NC}"
 echo ""
-echo "Your configuration in ~/.pseudo-url/ has been preserved."
-echo "Your domain mappings and certificates are still available."
+echo "Your configuration in ~/.nextium/ has been preserved."
+echo "Your projects and certificates are still available."
 echo ""
 echo "To remove configuration completely, run:"
-echo "  rm -rf ~/.pseudo-url"
+echo "  rm -rf ~/.nextium"
 

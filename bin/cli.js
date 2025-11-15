@@ -3,6 +3,9 @@
 const { program } = require('commander');
 const chalk = require('chalk');
 const inquirer = require('inquirer');
+const { execSync, spawn } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 const {
   addMapping,
   removeMapping,
@@ -664,6 +667,473 @@ program
       } else {
         console.log(chalk.red('Failed to delete certificates.'));
       }
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+/**
+ * Service management commands
+ */
+const serviceCommand = program
+  .command('service')
+  .description('Manage pseudo-url as a system service');
+
+/**
+ * Helper function to check if service is installed
+ */
+function isServiceInstalled() {
+  return fs.existsSync('/Library/LaunchDaemons/com.pseudo-url-localhost.plist');
+}
+
+/**
+ * Helper function to check if service is running
+ */
+function isServiceRunning() {
+  try {
+    execSync('launchctl print system/com.pseudo-url-localhost', { stdio: 'pipe' });
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Get service information
+ */
+function getServiceInfo() {
+  try {
+    const output = execSync('launchctl print system/com.pseudo-url-localhost', { 
+      encoding: 'utf8',
+      stdio: 'pipe'
+    });
+    
+    const pidMatch = output.match(/pid = (\d+)/);
+    const stateMatch = output.match(/state = ([^\n]+)/);
+    
+    return {
+      running: true,
+      pid: pidMatch ? pidMatch[1] : null,
+      state: stateMatch ? stateMatch[1] : null
+    };
+  } catch (error) {
+    return {
+      running: false,
+      pid: null,
+      state: null
+    };
+  }
+}
+
+/**
+ * Service install command
+ */
+serviceCommand
+  .command('install')
+  .description('Install pseudo-url as a system service')
+  .action(() => {
+    try {
+      if (isServiceInstalled()) {
+        console.log(chalk.yellow('Service is already installed.'));
+        console.log(chalk.cyan('Use ') + chalk.bold('pseudo-url service reinstall') + chalk.cyan(' to reinstall.'));
+        return;
+      }
+      
+      // Find install script
+      const scriptPath = path.join(__dirname, '..', 'install-service.sh');
+      
+      if (!fs.existsSync(scriptPath)) {
+        console.log(chalk.red('Error: Installation script not found.'));
+        console.log(chalk.gray(`Expected at: ${scriptPath}`));
+        process.exit(1);
+      }
+      
+      console.log(chalk.cyan('Running installation script...'));
+      console.log(chalk.gray('You may be prompted for your password.\n'));
+      
+      execSync(`bash "${scriptPath}"`, { stdio: 'inherit' });
+    } catch (error) {
+      console.error(chalk.red('Installation failed:'), error.message);
+      process.exit(1);
+    }
+  });
+
+/**
+ * Service uninstall command
+ */
+serviceCommand
+  .command('uninstall')
+  .description('Uninstall the system service')
+  .action(() => {
+    try {
+      if (!isServiceInstalled()) {
+        console.log(chalk.yellow('Service is not installed.'));
+        return;
+      }
+      
+      // Find uninstall script
+      const scriptPath = path.join(__dirname, '..', 'uninstall-service.sh');
+      
+      if (!fs.existsSync(scriptPath)) {
+        console.log(chalk.red('Error: Uninstallation script not found.'));
+        console.log(chalk.gray(`Expected at: ${scriptPath}`));
+        process.exit(1);
+      }
+      
+      console.log(chalk.cyan('Running uninstallation script...'));
+      console.log(chalk.gray('You may be prompted for your password.\n'));
+      
+      execSync(`bash "${scriptPath}"`, { stdio: 'inherit' });
+    } catch (error) {
+      console.error(chalk.red('Uninstallation failed:'), error.message);
+      process.exit(1);
+    }
+  });
+
+/**
+ * Service status command
+ */
+serviceCommand
+  .command('status')
+  .description('Check service status')
+  .action(() => {
+    console.log(chalk.bold('\nSystem Service Status:\n'));
+    
+    const installed = isServiceInstalled();
+    console.log(`  Service Installed: ${installed ? chalk.green('✓') : chalk.red('✗')}`);
+    
+    if (!installed) {
+      console.log('');
+      console.log(chalk.cyan('Install the service with:'));
+      console.log(chalk.bold('  sudo pseudo-url service install'));
+      console.log('');
+      return;
+    }
+    
+    const info = getServiceInfo();
+    console.log(`  Service Running: ${info.running ? chalk.green('✓') : chalk.red('✗')}`);
+    
+    if (info.running) {
+      if (info.pid) {
+        console.log(`  PID: ${chalk.cyan(info.pid)}`);
+      }
+      
+      const mappings = getAllMappings();
+      console.log(`  Mappings: ${chalk.cyan(Object.keys(mappings).length)}`);
+      
+      console.log('');
+      console.log('Useful commands:');
+      console.log('  pseudo-url service logs      - View service logs');
+      console.log('  pseudo-url service restart   - Restart service');
+      console.log('  pseudo-url list              - Show all mappings');
+    } else {
+      console.log('');
+      console.log(chalk.yellow('Service is installed but not running.'));
+      console.log(chalk.cyan('Start it with:'));
+      console.log(chalk.bold('  sudo pseudo-url service start'));
+    }
+    
+    console.log('');
+  });
+
+/**
+ * Service start command
+ */
+serviceCommand
+  .command('start')
+  .description('Start the system service')
+  .action(() => {
+    try {
+      if (!isServiceInstalled()) {
+        console.log(chalk.red('Error: Service is not installed.'));
+        console.log(chalk.cyan('Install it first with:'));
+        console.log(chalk.bold('  sudo pseudo-url service install'));
+        process.exit(1);
+      }
+      
+      if (isServiceRunning()) {
+        console.log(chalk.yellow('Service is already running.'));
+        console.log(chalk.cyan('Use ') + chalk.bold('pseudo-url service restart') + chalk.cyan(' to restart it.'));
+        return;
+      }
+      
+      console.log('Starting service...');
+      execSync('launchctl bootstrap system /Library/LaunchDaemons/com.pseudo-url-localhost.plist', { stdio: 'pipe' });
+      
+      // Wait a moment
+      setTimeout(() => {
+        if (isServiceRunning()) {
+          console.log(chalk.green('✓ Service started successfully'));
+          console.log('');
+          console.log('View logs: ' + chalk.bold('pseudo-url service logs'));
+        } else {
+          console.log(chalk.red('✗ Service failed to start'));
+          console.log('Check logs: cat /var/log/pseudo-url-localhost/stderr.log');
+        }
+      }, 1000);
+    } catch (error) {
+      console.error(chalk.red('Failed to start service:'), error.message);
+      process.exit(1);
+    }
+  });
+
+/**
+ * Service stop command
+ */
+serviceCommand
+  .command('stop')
+  .description('Stop the system service')
+  .action(() => {
+    try {
+      if (!isServiceInstalled()) {
+        console.log(chalk.yellow('Service is not installed.'));
+        return;
+      }
+      
+      if (!isServiceRunning()) {
+        console.log(chalk.yellow('Service is not running.'));
+        return;
+      }
+      
+      console.log('Stopping service...');
+      execSync('launchctl bootout system/com.pseudo-url-localhost', { stdio: 'pipe' });
+      console.log(chalk.green('✓ Service stopped'));
+      console.log('');
+      console.log(chalk.gray('Note: Service will not restart on boot until you run:'));
+      console.log(chalk.bold('  sudo pseudo-url service start'));
+      console.log('');
+    } catch (error) {
+      console.error(chalk.red('Failed to stop service:'), error.message);
+      process.exit(1);
+    }
+  });
+
+/**
+ * Service restart command
+ */
+serviceCommand
+  .command('restart')
+  .description('Restart the system service')
+  .action(() => {
+    try {
+      if (!isServiceInstalled()) {
+        console.log(chalk.red('Error: Service is not installed.'));
+        console.log(chalk.cyan('Install it first with:'));
+        console.log(chalk.bold('  sudo pseudo-url service install'));
+        process.exit(1);
+      }
+      
+      console.log('Restarting service...');
+      
+      // Stop if running
+      if (isServiceRunning()) {
+        execSync('launchctl bootout system/com.pseudo-url-localhost', { stdio: 'pipe' });
+        console.log(chalk.gray('✓ Service stopped'));
+      }
+      
+      // Start
+      execSync('launchctl bootstrap system /Library/LaunchDaemons/com.pseudo-url-localhost.plist', { stdio: 'pipe' });
+      
+      // Wait and verify
+      setTimeout(() => {
+        if (isServiceRunning()) {
+          console.log(chalk.green('✓ Service restarted successfully'));
+        } else {
+          console.log(chalk.red('✗ Service failed to restart'));
+          console.log('Check logs: cat /var/log/pseudo-url-localhost/stderr.log');
+        }
+      }, 1000);
+    } catch (error) {
+      console.error(chalk.red('Failed to restart service:'), error.message);
+      process.exit(1);
+    }
+  });
+
+/**
+ * Service reinstall command
+ */
+serviceCommand
+  .command('reinstall')
+  .description('Reinstall the system service (useful after updates)')
+  .action(() => {
+    try {
+      console.log(chalk.cyan('Reinstalling service...'));
+      console.log('');
+      
+      // Uninstall if installed
+      if (isServiceInstalled()) {
+        const uninstallScript = path.join(__dirname, '..', 'uninstall-service.sh');
+        if (fs.existsSync(uninstallScript)) {
+          console.log('Uninstalling current service...');
+          // Run uninstall non-interactively
+          execSync(`bash "${uninstallScript}" <<< "n"`, { stdio: 'pipe' });
+          console.log(chalk.green('✓ Uninstalled'));
+          console.log('');
+        }
+      }
+      
+      // Install
+      const installScript = path.join(__dirname, '..', 'install-service.sh');
+      if (!fs.existsSync(installScript)) {
+        console.log(chalk.red('Error: Installation script not found.'));
+        process.exit(1);
+      }
+      
+      console.log('Installing service...');
+      execSync(`bash "${installScript}"`, { stdio: 'inherit' });
+    } catch (error) {
+      console.error(chalk.red('Reinstallation failed:'), error.message);
+      process.exit(1);
+    }
+  });
+
+/**
+ * Service logs command
+ */
+serviceCommand
+  .command('logs')
+  .description('View service logs')
+  .option('-f, --follow', 'Follow log output')
+  .option('-e, --errors', 'Show only errors')
+  .option('-n, --lines <number>', 'Number of lines to show', '50')
+  .action((options) => {
+    const logDir = '/var/log/pseudo-url-localhost';
+    
+    if (!fs.existsSync(logDir)) {
+      console.log(chalk.yellow('No logs found. Service may not be installed.'));
+      return;
+    }
+    
+    const stdoutLog = path.join(logDir, 'stdout.log');
+    const stderrLog = path.join(logDir, 'stderr.log');
+    
+    try {
+      if (options.follow) {
+        console.log(chalk.cyan('Following logs (Ctrl+C to stop)...\n'));
+        if (options.errors) {
+          spawn('tail', ['-f', stderrLog], { stdio: 'inherit' });
+        } else {
+          spawn('tail', ['-f', stdoutLog, stderrLog], { stdio: 'inherit' });
+        }
+      } else {
+        const lines = parseInt(options.lines);
+        
+        if (options.errors && fs.existsSync(stderrLog)) {
+          console.log(chalk.bold('Error Log:\n'));
+          const output = execSync(`tail -n ${lines} "${stderrLog}"`, { encoding: 'utf8' });
+          console.log(output);
+        } else {
+          if (fs.existsSync(stdoutLog)) {
+            console.log(chalk.bold('Standard Output:\n'));
+            const output = execSync(`tail -n ${lines} "${stdoutLog}"`, { encoding: 'utf8' });
+            console.log(output);
+          }
+          
+          if (fs.existsSync(stderrLog)) {
+            const stderr = fs.readFileSync(stderrLog, 'utf8');
+            if (stderr.trim()) {
+              console.log(chalk.bold('\nError Log:\n'));
+              const output = execSync(`tail -n ${lines} "${stderrLog}"`, { encoding: 'utf8' });
+              console.log(output);
+            }
+          }
+        }
+        
+        console.log('');
+        console.log(chalk.gray('Log files:'));
+        console.log(chalk.gray(`  ${stdoutLog}`));
+        console.log(chalk.gray(`  ${stderrLog}`));
+        console.log('');
+        console.log(chalk.gray('Use -f to follow logs in real-time'));
+      }
+    } catch (error) {
+      console.error(chalk.red('Error reading logs:'), error.message);
+      process.exit(1);
+    }
+  });
+
+/**
+ * Development mode command
+ */
+program
+  .command('dev')
+  .description('Run in development mode with auto-reload (stops system service)')
+  .action(async () => {
+    try {
+      // Check if we're in a directory with bin/cli.js
+      const localCli = path.join(process.cwd(), 'bin', 'cli.js');
+      if (!fs.existsSync(localCli)) {
+        console.log(chalk.red('Error: Must run from pseudo-url-localhost directory'));
+        console.log(chalk.gray('Development mode requires local source files.'));
+        process.exit(1);
+      }
+      
+      // Check if nodemon is available
+      try {
+        execSync('which nodemon', { stdio: 'pipe' });
+      } catch (error) {
+        console.log(chalk.red('Error: nodemon not found'));
+        console.log(chalk.cyan('Install it with: npm install'));
+        process.exit(1);
+      }
+      
+      // Check if service is running
+      const serviceWasRunning = isServiceRunning();
+      
+      if (serviceWasRunning) {
+        console.log(chalk.cyan('Stopping system service...'));
+        try {
+          execSync('launchctl bootout system/com.pseudo-url-localhost', { stdio: 'pipe' });
+          console.log(chalk.green('✓ Service stopped'));
+        } catch (error) {
+          console.log(chalk.yellow('Warning: Could not stop service (may not be running)'));
+        }
+      }
+      
+      console.log('');
+      console.log(chalk.bold('Development Mode'));
+      console.log('━'.repeat(50));
+      console.log('');
+      console.log(chalk.cyan('Starting proxy with auto-reload...'));
+      console.log(chalk.gray('Edit files in src/ or bin/ to trigger reload'));
+      console.log(chalk.gray('Press Ctrl+C to stop and restore service'));
+      console.log('');
+      
+      // Setup cleanup handler
+      const cleanup = () => {
+        console.log('');
+        console.log(chalk.cyan('Stopping development mode...'));
+        
+        if (serviceWasRunning) {
+          console.log(chalk.cyan('Restarting system service...'));
+          try {
+            execSync('launchctl bootstrap system /Library/LaunchDaemons/com.pseudo-url-localhost.plist', { stdio: 'pipe' });
+            console.log(chalk.green('✓ Service restarted'));
+          } catch (error) {
+            console.log(chalk.red('✗ Failed to restart service'));
+            console.log(chalk.yellow('Manually restart with: sudo pseudo-url service start'));
+          }
+        }
+        
+        console.log('');
+        console.log(chalk.bold('To install your local changes to the system service:'));
+        console.log(chalk.cyan('  sudo pseudo-url service reinstall'));
+        console.log('');
+        
+        process.exit(0);
+      };
+      
+      process.on('SIGINT', cleanup);
+      process.on('SIGTERM', cleanup);
+      
+      // Run nodemon
+      const nodemon = spawn('npx', ['nodemon', '--config', 'nodemon.json'], {
+        stdio: 'inherit',
+        env: process.env
+      });
+      
+      nodemon.on('exit', cleanup);
     } catch (error) {
       console.error(chalk.red('Error:'), error.message);
       process.exit(1);

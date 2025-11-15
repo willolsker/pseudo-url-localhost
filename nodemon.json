@@ -1,0 +1,10 @@
+{
+  "watch": ["src/**/*.js", "bin/**/*.js"],
+  "ext": "js,json",
+  "ignore": ["node_modules/", "test/", ".git/"],
+  "exec": "node bin/cli.js start",
+  "restartable": "rs",
+  "delay": 500,
+  "verbose": false
+}
+

@@ -29,6 +29,49 @@ function getDefaultConfig() {
 }
 
 /**
+ * Validate configuration for security issues
+ */
+function validateConfig(config) {
+  // Check file permissions
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      const stats = fs.statSync(CONFIG_FILE);
+      const mode = stats.mode & parseInt('777', 8);
+      
+      if (mode & 0o002) {
+        console.warn('Warning: Config file is world-writable');
+        console.warn(`Run: chmod 644 ${CONFIG_FILE}`);
+      }
+    }
+  } catch (error) {
+    // Ignore permission check errors
+  }
+  
+  // Validate ports
+  if (config.mappings) {
+    Object.entries(config.mappings).forEach(([domain, port]) => {
+      if (typeof port !== 'number' || port < 1 || port > 65535) {
+        throw new Error(`Invalid port for domain ${domain}: ${port}`);
+      }
+    });
+  }
+  
+  // Validate domain names
+  if (config.mappings) {
+    Object.keys(config.mappings).forEach(domain => {
+      if (domain.includes('..') || domain.startsWith('.')) {
+        throw new Error(`Invalid domain name: ${domain}`);
+      }
+      if (domain.includes('/') || domain.includes('\\')) {
+        throw new Error(`Invalid domain name: ${domain}`);
+      }
+    });
+  }
+  
+  return true;
+}
+
+/**
  * Load configuration from disk
  */
 function loadConfig() {
@@ -43,7 +86,12 @@ function loadConfig() {
     const config = JSON.parse(data);
     
     // Merge with defaults to ensure all fields exist
-    return { ...getDefaultConfig(), ...config };
+    const mergedConfig = { ...getDefaultConfig(), ...config };
+    
+    // Validate configuration
+    validateConfig(mergedConfig);
+    
+    return mergedConfig;
   } catch (error) {
     console.error('Error loading config:', error.message);
     return getDefaultConfig();

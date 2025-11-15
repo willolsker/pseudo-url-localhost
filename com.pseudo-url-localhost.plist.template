@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.pseudo-url-localhost</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>{{NODE_PATH}}</string>
+        <string>{{CLI_PATH}}</string>
+        <string>start</string>
+    </array>
+    
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <key>KeepAlive</key>
+    <true/>
+    
+    <key>StandardOutPath</key>
+    <string>/var/log/pseudo-url-localhost/stdout.log</string>
+    
+    <key>StandardErrorPath</key>
+    <string>/var/log/pseudo-url-localhost/stderr.log</string>
+    
+    <key>WorkingDirectory</key>
+    <string>{{WORKING_DIR}}</string>
+    
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>NODE_ENV</key>
+        <string>production</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+</dict>
+</plist>
+

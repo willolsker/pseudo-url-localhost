@@ -8,7 +8,13 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "service:install": "sudo bash install-service.sh",
+    "service:uninstall": "sudo bash uninstall-service.sh",
+    "service:status": "node bin/cli.js service status",
+    "service:restart": "sudo node bin/cli.js service restart",
+    "service:logs": "node bin/cli.js service logs",
+    "dev": "sudo node bin/cli.js dev"
   },
   "keywords": [
     "localhost",
@@ -27,6 +33,9 @@
     "http-proxy": "^1.18.1",
     "inquirer": "^8.2.5"
   },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
   "engines": {
     "node": ">=14.0.0"
   },
@@ -35,4 +44,3 @@
     "url": "https://github.com/yourusername/pseudo-url-localhost.git"
   }
 }
-

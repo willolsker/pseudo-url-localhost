@@ -52,6 +52,44 @@ sudo pseudo-url start
 
 4. **Access your app** at `https://myapp.local` (or `http://myapp.local`)
 
+## Running as a System Service (Recommended)
+
+For the best experience, install pseudo-url as a system service that runs automatically on startup:
+
+```bash
+sudo pseudo-url service install
+```
+
+**Benefits:**
+
+- ✓ Starts automatically on boot
+- ✓ Runs in background (no terminal needed)
+- ✓ Auto-restarts if it crashes
+- ✓ Automatically reloads when you add/remove domains
+- ✓ Zero downtime configuration updates
+
+**Service Management:**
+
+```bash
+pseudo-url service status          # Check if running
+pseudo-url service logs             # View logs
+pseudo-url service restart          # Restart service
+sudo pseudo-url service reinstall   # Update after npm upgrade
+```
+
+**Daily Usage with Service:**
+
+```bash
+# Just add mappings - they work immediately!
+pseudo-url add myapp.local 3000    # No restart needed
+pseudo-url add api.local 8080      # Works instantly
+
+# Check your mappings
+pseudo-url list
+```
+
+**See [SERVICE.md](SERVICE.md) for complete documentation.**
+
 ## Usage
 
 ### Add a Domain Mapping
@@ -419,11 +457,53 @@ If port 80 is already in use:
 2. Check that your development server is running on the mapped port
 3. View status: `pseudo-url status`
 
+## Development Mode
+
+If you're contributing to pseudo-url itself, use development mode:
+
+```bash
+cd pseudo-url-localhost
+sudo pseudo-url dev
+```
+
+This will:
+
+- Stop the system service temporarily
+- Run the proxy with auto-reload (nodemon)
+- Automatically restart the service when you exit
+
+Perfect for developing and testing changes. When you're done, run `sudo pseudo-url service reinstall` to install your changes to the system service.
+
+## Security Notes
+
+### System Service Security
+
+When running as a system service, pseudo-url:
+
+- **Runs as root** (required for ports 80/443)
+- **Only listens on localhost** (127.0.0.1) - not exposed to network
+- **Validates configuration** for malicious domains/ports
+- **Rate limits** requests (1000/min per domain)
+- **Auto-checks** file permissions and warns if insecure
+
+### Best Practices
+
+1. **Keep dependencies updated**: `npm update -g pseudo-url-localhost`
+2. **Monitor logs**: `pseudo-url service logs` for unusual activity
+3. **Review mappings**: `pseudo-url list` regularly
+4. **Use HTTPS**: Install mkcert for secure local development
+5. **Restrict config access**: Ensure `~/.pseudo-url/config.json` is not world-writable
+
+See [SERVICE.md](SERVICE.md#security-considerations) for detailed security information.
+
 ## Cleanup
 
 To completely remove all pseudo-url configurations:
 
 ```bash
+# Uninstall service (if installed)
+sudo pseudo-url service uninstall
+
 # Clear all mappings and sync
 pseudo-url clear
 sudo pseudo-url sync

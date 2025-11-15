@@ -311,7 +311,7 @@ program
  * Start a project
  */
 program
-  .command("start")
+  .command("start-project")
   .description("Start a project in background")
   .argument("<domain>", "Project domain")
   .option(
@@ -437,7 +437,7 @@ program
     const processInfo = getProcessInfo(domain);
     if (!processInfo || processInfo.state === "stopped") {
       console.log(chalk.yellow(`Project ${domain} is not running`));
-      console.log(chalk.gray("Start it with: nextium start " + domain));
+      console.log(chalk.gray("Start it with: nextium start-project " + domain));
       return;
     }
 
@@ -910,11 +910,21 @@ program
   .action(async (options) => {
     try {
       const mappings = getAllMappings();
+      const projects = getAllProjects();
 
-      if (Object.keys(mappings).length === 0) {
-        console.log(chalk.yellow("No mappings configured."));
+      if (
+        Object.keys(mappings).length === 0 &&
+        Object.keys(projects).length === 0
+      ) {
+        console.log(chalk.yellow("No mappings or projects configured."));
         console.log(
-          chalk.cyan(`Use ${chalk.bold("nextium add")} to add a mapping first.`)
+          chalk.cyan(
+            `Use ${chalk.bold(
+              "nextium create"
+            )} to setup a Next.js project, or ${chalk.bold(
+              "nextium add"
+            )} to add a mapping.`
+          )
         );
         return;
       }
@@ -1025,11 +1035,13 @@ program
   });
 
 /**
- * Sync hosts file with current mappings
+ * Sync hosts file with current mappings and Nextium projects
  */
 program
   .command("sync")
-  .description("Synchronize hosts file with current mappings (requires sudo)")
+  .description(
+    "Synchronize hosts file with current mappings and Nextium projects (requires sudo)"
+  )
   .action(() => {
     try {
       if (!checkPermissions()) {
@@ -1040,13 +1052,32 @@ program
         process.exit(1);
       }
 
+      // Get both static mappings and Nextium projects
       const mappings = getAllMappings();
-      updateHostsFile(mappings);
+      const projects = getAllProjects();
+
+      // Combine all domains
+      const allDomains = { ...mappings };
+      Object.keys(projects).forEach((domain) => {
+        // Add Nextium projects (port doesn't matter for Nextium projects)
+        allDomains[domain] = 0;
+      });
+
+      updateHostsFile(allDomains);
+      const totalCount = Object.keys(allDomains).length;
+      const projectCount = Object.keys(projects).length;
+      const mappingCount = Object.keys(mappings).length;
+
       console.log(
-        chalk.green(
-          `✓ Synced ${Object.keys(mappings).length} domain(s) to hosts file`
-        )
+        chalk.green(`✓ Synced ${totalCount} domain(s) to hosts file`)
       );
+      if (projectCount > 0) {
+        console.log(
+          chalk.gray(
+            `  ${projectCount} Nextium project(s), ${mappingCount} static mapping(s)`
+          )
+        );
+      }
       console.log(chalk.gray(`  (${HOSTS_FILE})`));
     } catch (error) {
       console.error(chalk.red("Error:"), error.message);

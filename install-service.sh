@@ -46,6 +46,10 @@ fi
 
 echo -e "${GREEN}✓${NC} Node.js found at: $NODE_PATH"
 
+# Detect user's home directory (for config access when running as root)
+USER_HOME=$(eval echo ~${SUDO_USER:-$USER})
+echo -e "${GREEN}✓${NC} User home directory: $USER_HOME"
+
 # Detect nextium CLI path
 echo "Detecting nextium installation..."
 
@@ -66,12 +70,20 @@ fi
 
 echo -e "${GREEN}✓${NC} nextium found at: $CLI_PATH"
 
-# Determine working directory
+# Determine working directory (must be absolute path)
 if [ -L "$CLI_PATH" ]; then
-    # If it's a symlink, resolve it
-    WORKING_DIR=$(dirname $(readlink "$CLI_PATH"))
+    # If it's a symlink, resolve it to absolute path
+    RESOLVED=$(readlink "$CLI_PATH")
+    if [[ "$RESOLVED" == /* ]]; then
+        # Already absolute
+        WORKING_DIR=$(dirname "$RESOLVED")
+    else
+        # Relative path, resolve from symlink location
+        SYMLINK_DIR=$(dirname "$CLI_PATH")
+        WORKING_DIR=$(cd "$SYMLINK_DIR" && cd "$(dirname "$RESOLVED")" && pwd)
+    fi
 else
-    WORKING_DIR=$(dirname "$CLI_PATH")
+    WORKING_DIR=$(cd "$(dirname "$CLI_PATH")" && pwd)
 fi
 
 echo -e "${GREEN}✓${NC} Working directory: $WORKING_DIR"
@@ -112,6 +124,7 @@ sed -e "s|{{NODE_PATH}}|$NODE_PATH|g" \
     -e "s|{{CLI_PATH}}|$CLI_PATH|g" \
     -e "s|{{WORKING_DIR}}|$WORKING_DIR|g" \
     -e "s|{{BIN_DIR}}|$BIN_DIR|g" \
+    -e "s|{{USER_HOME}}|$USER_HOME|g" \
     "$TEMPLATE_FILE" > /tmp/com.nextium.plist
 
 # Install plist

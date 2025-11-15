@@ -511,15 +511,26 @@ function updateLastAccess(domain) {
  * @returns {Object|null} Process info or null
  */
 function getProcessInfo(domain) {
-  const processInfo = runningProcesses.get(domain);
+  // First check in-memory Map (current process)
+  let processInfo = runningProcesses.get(domain);
 
-  if (!processInfo) {
-    return null;
+  if (processInfo) {
+    // Return a copy without the childProcess object
+    const { childProcess, ...info } = processInfo;
+    return info;
   }
 
-  // Return a copy without the childProcess object
-  const { childProcess, ...info } = processInfo;
-  return info;
+  // If not in memory, check persisted file (for processes started in other processes)
+  try {
+    const persisted = loadProcesses();
+    if (persisted && persisted.processes && persisted.processes[domain]) {
+      return persisted.processes[domain];
+    }
+  } catch (error) {
+    // Ignore errors loading persisted processes
+  }
+
+  return null;
 }
 
 /**
@@ -529,9 +540,25 @@ function getProcessInfo(domain) {
 function getAllProcesses() {
   const processes = {};
 
+  // First, get processes from in-memory Map (current process)
   for (const [domain, processInfo] of runningProcesses.entries()) {
     const { childProcess, ...info } = processInfo;
     processes[domain] = info;
+  }
+
+  // Also check persisted file (for processes started in other processes)
+  try {
+    const persisted = loadProcesses();
+    if (persisted && persisted.processes) {
+      // Merge persisted processes (don't overwrite in-memory ones)
+      for (const [domain, info] of Object.entries(persisted.processes)) {
+        if (!processes[domain]) {
+          processes[domain] = info;
+        }
+      }
+    }
+  } catch (error) {
+    // Ignore errors loading persisted processes
   }
 
   return processes;

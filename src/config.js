@@ -2,7 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const CONFIG_DIR = path.join(os.homedir(), '.nextium');
+// Use NEXTIUM_USER_HOME if set (for service running as root), otherwise use current user's home
+const USER_HOME = process.env.NEXTIUM_USER_HOME || os.homedir();
+const CONFIG_DIR = path.join(USER_HOME, '.nextium');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 const HOSTS_BACKUP = path.join(CONFIG_DIR, 'hosts.backup');
 

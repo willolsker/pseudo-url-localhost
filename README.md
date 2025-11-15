@@ -9,6 +9,7 @@ Map custom pseudo-URLs to your localhost development servers with ease! Never ty
 - 📝 Automatic hosts file management
 - 💻 Simple CLI interface
 - 🎯 Works with any local development server
+- ⚡ Run serverless architectures locally with proper domain routing
 - 🛠️ Easy configuration management
 
 ## Installation
@@ -156,9 +157,113 @@ sudo pseudo-url start
 ```
 
 Now you can access:
+
 - `http://frontend.local` → `http://localhost:3000`
 - `http://backend.local` → `http://localhost:8000`
 - `http://database-admin.local` → `http://localhost:5432`
+
+## Serverless Development
+
+`pseudo-url-localhost` is perfect for running serverless architectures locally with proper domain routing. Map your serverless functions to custom domains just like production.
+
+### AWS SAM / Serverless Framework
+
+```bash
+# Start your serverless app locally (default port 3000)
+serverless offline start
+
+# Map it to a custom domain
+pseudo-url add api.serverless.local 3000
+sudo pseudo-url sync
+sudo pseudo-url start
+
+# Access at http://api.serverless.local/function-name
+```
+
+### AWS Lambda with LocalStack
+
+```bash
+# Start LocalStack (default port 4566)
+localstack start
+
+# Map Lambda endpoints
+pseudo-url add lambda.local 4566
+sudo pseudo-url sync
+sudo pseudo-url start
+
+# Access Lambda functions at http://lambda.local
+```
+
+### Netlify Dev
+
+```bash
+# Start Netlify Dev (default port 8888)
+netlify dev
+
+# Map to custom domain
+pseudo-url add myapp.netlify.local 8888
+sudo pseudo-url sync
+sudo pseudo-url start
+
+# Access at http://myapp.netlify.local
+```
+
+### Vercel Dev
+
+```bash
+# Start Vercel dev server (default port 3000)
+vercel dev
+
+# Map to custom domain
+pseudo-url add myapp.vercel.local 3000
+sudo pseudo-url sync
+sudo pseudo-url start
+
+# Access at http://myapp.vercel.local
+```
+
+### Azure Functions
+
+```bash
+# Start Azure Functions locally (default port 7071)
+func start
+
+# Map to custom domain
+pseudo-url add functions.azure.local 7071
+sudo pseudo-url sync
+sudo pseudo-url start
+
+# Access at http://functions.azure.local/api/function-name
+```
+
+### Multi-Service Serverless Architecture
+
+```bash
+# Map multiple serverless services
+pseudo-url add auth.local 3001      # Auth service
+pseudo-url add api.local 3002       # API Gateway
+pseudo-url add webhooks.local 3003  # Webhook handlers
+pseudo-url add admin.local 3004     # Admin functions
+
+sudo pseudo-url sync
+sudo pseudo-url start
+
+# Now your microservices architecture works with proper domains
+# http://auth.local
+# http://api.local
+# http://webhooks.local
+# http://admin.local
+```
+
+### Benefits for Serverless Development
+
+- **Production-like URLs**: Test with real domain names instead of `localhost:port`
+- **CORS Testing**: Properly test cross-origin requests between services
+- **Webhook Development**: Provide clean URLs for webhook testing
+- **API Gateway Simulation**: Mimic cloud provider routing locally
+- **Microservices**: Manage multiple serverless functions with distinct domains
+- **Environment Parity**: Closer to production configuration during development
+- **Context Switching**: Dramatically improves developer convenience when switching between multiple serverless projects - memorable domain names (like `auth.local`, `api.local`) are much easier to remember and access than port numbers (`localhost:3001`, `localhost:3002`), reducing cognitive load and speeding up development workflow
 
 ## Port Requirements
 
@@ -171,6 +276,7 @@ Now you can access:
 ### Hosts File Modification
 
 Modifying the hosts file requires elevated permissions (sudo). The hosts file locations:
+
 - **macOS/Linux**: `/etc/hosts`
 - **Windows**: `C:\Windows\System32\drivers\etc\hosts`
 
@@ -199,12 +305,14 @@ Example configuration:
 ### Permission Errors
 
 If you get permission errors:
+
 - Run with `sudo` for operations that modify the hosts file or use port 80
 - Or use a port >= 1024: `pseudo-url start -p 8080`
 
 ### Port Already in Use
 
 If port 80 is already in use:
+
 - Stop the conflicting service, or
 - Use a different port: `pseudo-url port 8080`
 
@@ -247,4 +355,3 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## Support
 
 If you encounter any issues or have questions, please file an issue on the GitHub repository.
-

@@ -1,0 +1,38 @@
+{
+  "name": "pseudo-url-localhost",
+  "version": "1.0.0",
+  "description": "Map custom pseudo-URLs to your localhost development servers",
+  "main": "src/index.js",
+  "bin": {
+    "pseudo-url": "./bin/cli.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "localhost",
+    "proxy",
+    "development",
+    "custom-domain",
+    "pseudo-url",
+    "hosts",
+    "dns"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.1.0",
+    "chalk": "^4.1.2",
+    "http-proxy": "^1.18.1",
+    "inquirer": "^8.2.5"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/pseudo-url-localhost.git"
+  }
+}
+

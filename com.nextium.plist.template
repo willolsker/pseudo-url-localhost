@@ -32,7 +32,7 @@
         <key>NODE_ENV</key>
         <string>production</string>
         <key>PATH</key>
-        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <string>{{BIN_DIR}}:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     </dict>
 </dict>
 </plist>

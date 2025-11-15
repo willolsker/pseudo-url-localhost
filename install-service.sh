@@ -76,6 +76,17 @@ fi
 
 echo -e "${GREEN}✓${NC} Working directory: $WORKING_DIR"
 
+# Determine bin directory for PATH
+if [ -L "$CLI_PATH" ]; then
+    # For symlinked installations (global), use the directory of the symlink
+    BIN_DIR=$(dirname "$CLI_PATH")
+else
+    # For local installations, use the bin directory
+    BIN_DIR=$(dirname "$CLI_PATH")
+fi
+
+echo -e "${GREEN}✓${NC} Bin directory: $BIN_DIR"
+
 # Check if template exists
 TEMPLATE_FILE="$WORKING_DIR/../com.nextium.plist.template"
 if [ ! -f "$TEMPLATE_FILE" ]; then
@@ -100,6 +111,7 @@ echo "Generating service configuration..."
 sed -e "s|{{NODE_PATH}}|$NODE_PATH|g" \
     -e "s|{{CLI_PATH}}|$CLI_PATH|g" \
     -e "s|{{WORKING_DIR}}|$WORKING_DIR|g" \
+    -e "s|{{BIN_DIR}}|$BIN_DIR|g" \
     "$TEMPLATE_FILE" > /tmp/com.nextium.plist
 
 # Install plist

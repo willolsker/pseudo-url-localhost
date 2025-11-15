@@ -1,3 +1,6 @@
+# Local configuration
+.pseudo-url/
+
 # Dependencies
 node_modules/
 npm-debug.log*

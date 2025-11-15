@@ -55,6 +55,7 @@ A comprehensive security and privacy management system for AI agents with comput
 #### Core Security Features
 
 - **Permission System & Access Control**
+
   - Granular permission model for AI agent actions
   - File system access control with allowlist/blocklist
   - Network request permission management
@@ -65,6 +66,7 @@ A comprehensive security and privacy management system for AI agents with comput
   - Permission inheritance and delegation rules
 
 - **Audit Logging & Transparency**
+
   - Comprehensive logging of all AI agent actions
   - Real-time activity monitoring dashboard
   - Detailed audit trails with timestamps and context
@@ -87,6 +89,7 @@ A comprehensive security and privacy management system for AI agents with comput
 #### Privacy Controls
 
 - **Data Protection**
+
   - Sensitive data classification and masking
   - PII (Personally Identifiable Information) detection and filtering
   - Configurable data retention policies
@@ -97,6 +100,7 @@ A comprehensive security and privacy management system for AI agents with comput
   - GDPR and privacy regulation compliance features
 
 - **User Consent & Control**
+
   - Explicit consent workflows for sensitive operations
   - Just-in-time permission prompts with context
   - Whitelist/blacklist management UI
@@ -106,9 +110,48 @@ A comprehensive security and privacy management system for AI agents with comput
   - Parental/organizational controls
   - Transparency reports for users
 
+- **Voluntary Training Data Contribution (Opt-In)**
+  - Optional data sharing with AI labs and product developers
+  - Strictly opt-in basis with explicit user consent
+  - Human-in-the-loop conversation review and approval
+  - Rule-based filtering to include/exclude conversations
+    - Filter by conversation topic or content type
+    - Exclude conversations containing sensitive information
+    - Time-based filtering (e.g., only share recent conversations)
+    - Application-specific filtering rules
+    - Custom regex and keyword-based exclusion rules
+  - Conversation-level granular control
+    - Review individual conversations before submission
+    - Bulk approval/rejection with preview
+    - Edit or redact specific messages before sharing
+    - Annotate conversations with feedback
+  - Convenient management interface
+    - Visual conversation browser with filtering
+    - One-click approval/rejection workflows
+    - Batch operations with safety confirmations
+    - "Share with feedback" option for bug reports
+    - Preview exactly what will be shared
+  - Transparency and control features
+    - Clear disclosure of what data is shared
+    - View submission history and receipts
+    - Revoke previously submitted data (where possible)
+    - Export personal data contribution reports
+    - Configure automatic submission rules (still requiring periodic review)
+  - Privacy-preserving options
+    - Automatic PII redaction before submission
+    - Anonymization and pseudonymization options
+    - Local-only review (no cloud processing for filtering)
+    - Differential privacy techniques for sensitive data
+  - Developer/Lab integration
+    - Standardized API for receiving voluntary contributions
+    - Feedback loop: show users how their data improved models
+    - Contribution credits or recognition system (optional)
+    - Support for multiple AI labs/providers
+
 #### Advanced Security Features
 
 - **Threat Detection & Prevention**
+
   - Anomaly detection for unusual AI behavior
   - Rate limiting and throttling mechanisms
   - Pattern recognition for malicious activities
@@ -130,6 +173,7 @@ A comprehensive security and privacy management system for AI agents with comput
 #### Developer & Admin Tools
 
 - **Management Interface**
+
   - Centralized security dashboard
   - Policy editor with visual workflow builder
   - Real-time agent activity viewer
@@ -151,6 +195,7 @@ A comprehensive security and privacy management system for AI agents with comput
 #### Education & Documentation
 
 - **User Education**
+
   - Interactive security tutorials
   - Best practices documentation
   - Security awareness training modules

@@ -142,6 +142,7 @@ function saveDomains(domains) {
 
 /**
  * Check if certificates exist and are valid for the given domains
+ * All domains should be .nextium.local and certificates should include *.nextium.local wildcard
  */
 function certificatesExist(domains) {
   if (!fs.existsSync(CERT_FILE) || !fs.existsSync(KEY_FILE)) {
@@ -150,31 +151,22 @@ function certificatesExist(domains) {
   
   // Check if domains match what we generated for
   const savedDomains = loadSavedDomains();
-  if (savedDomains.length !== domains.length) {
+  const savedSet = new Set(savedDomains);
+  
+  // Certificates should always include *.nextium.local wildcard
+  if (!savedSet.has('*.nextium.local')) {
     return false;
   }
   
-  // Check if all domains are present (order doesn't matter)
-  const savedSet = new Set(savedDomains);
-  const currentSet = new Set(domains);
-  
-  for (const domain of domains) {
-    if (!savedSet.has(domain)) {
-      return false;
-    }
-  }
-  
-  for (const domain of savedDomains) {
-    if (!currentSet.has(domain)) {
-      return false;
-    }
-  }
-  
+  // All domains should be .nextium.local (validated elsewhere)
+  // With wildcard, we don't need to check individual .nextium.local domains
+  // Just verify that the certificate was generated with wildcard
   return true;
 }
 
 /**
  * Generate certificates for the given domains
+ * Automatically includes *.nextium.local wildcard if any .nextium.local domains exist
  */
 function generateCertificates(domains) {
   if (!isMkcertInstalled()) {
@@ -192,6 +184,15 @@ function generateCertificates(domains) {
   ensureCertsDir();
   
   try {
+    // Check if any domains end with .nextium.local
+    const hasNextiumLocal = domains.some(domain => domain.endsWith('.nextium.local'));
+    
+    // Build certificate domains list - include wildcard if we have .nextium.local domains
+    const certDomains = [...domains];
+    if (hasNextiumLocal && !certDomains.includes('*.nextium.local')) {
+      certDomains.push('*.nextium.local');
+    }
+    
     // Build mkcert command
     const certPath = CERT_FILE;
     const keyPath = KEY_FILE;
@@ -205,18 +206,18 @@ function generateCertificates(domains) {
     }
     
     // Generate new certificates
-    const domainsArgs = domains.join(' ');
+    const domainsArgs = certDomains.join(' ');
     const command = `mkcert -cert-file "${certPath}" -key-file "${keyPath}" ${domainsArgs}`;
     
     execSync(command, { stdio: 'pipe' });
     
-    // Save the domains list
-    saveDomains(domains);
+    // Save the domains list (including wildcard if added)
+    saveDomains(certDomains);
     
     return {
       cert: certPath,
       key: keyPath,
-      domains: domains
+      domains: certDomains
     };
   } catch (error) {
     throw new Error(`Failed to generate certificates: ${error.message}`);
@@ -258,6 +259,7 @@ function loadCertificates() {
 
 /**
  * Ensure certificates are generated and up-to-date for the given domains
+ * Automatically includes *.nextium.local wildcard if any .nextium.local domains exist
  */
 function ensureCertificates(domains) {
   if (!isMkcertInstalled()) {
@@ -285,7 +287,9 @@ function ensureCertificates(domains) {
   }
   
   try {
+    // Check if certificates exist for these domains (wildcard handling is in certificatesExist)
     if (!certificatesExist(domains)) {
+      // generateCertificates will automatically add wildcard if needed
       generateCertificates(domains);
     }
     

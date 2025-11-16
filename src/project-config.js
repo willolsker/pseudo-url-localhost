@@ -329,7 +329,7 @@ function suggestDomainName(projectPath) {
     domain = "myproject";
   }
 
-  return `${domain}.nextium`;
+  return `${domain}.nextium.local`;
 }
 
 module.exports = {

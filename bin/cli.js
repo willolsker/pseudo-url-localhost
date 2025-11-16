@@ -108,8 +108,8 @@ program
             if (!input || input.trim() === "") {
               return "Domain name is required";
             }
-            if (!input.endsWith(".nextium")) {
-              return "Domain must end with .nextium (e.g., myproject.nextium)";
+            if (!input.endsWith(".nextium.local")) {
+              return "Domain must end with .nextium.local (e.g., myproject.nextium.local)";
             }
             if (isDomainRegistered(input)) {
               return `Domain ${input} is already registered`;

@@ -31,33 +31,34 @@ function getDefaultConfig() {
 }
 
 /**
- * Validate that a domain uses the .nextium TLD
+ * Validate that a domain uses the .nextium.local TLD
  * @param {string} domain - Domain to validate
  * @returns {boolean} True if valid
- * @throws {Error} If domain doesn't end with .nextium
+ * @throws {Error} If domain doesn't end with .nextium.local
  */
 function validateNextiumDomain(domain) {
-  if (!domain.endsWith('.nextium')) {
+  if (!domain.endsWith('.nextium.local')) {
     throw new Error(
       `Invalid domain: ${domain}\n` +
-      `Nextium requires all domains to end with .nextium\n` +
-      `Example: myproject.nextium`
+      `Nextium requires all domains to end with .nextium.local\n` +
+      `Example: myproject.nextium.local`
     );
   }
   
   // Additional validation
-  if (domain === '.nextium') {
-    throw new Error('Domain cannot be just .nextium');
+  if (domain === '.nextium.local') {
+    throw new Error('Domain cannot be just .nextium.local');
   }
   
   // Check for valid subdomain format
   const parts = domain.split('.');
-  if (parts.length < 2 || parts[parts.length - 1] !== 'nextium') {
+  if (parts.length < 3 || parts[parts.length - 2] !== 'nextium' || parts[parts.length - 1] !== 'local') {
     throw new Error(`Invalid domain format: ${domain}`);
   }
   
   // Validate subdomain parts (no empty parts, no invalid characters)
-  const subdomainParts = parts.slice(0, -1);
+  // Slice to -2 to exclude both 'nextium' and 'local' TLD parts
+  const subdomainParts = parts.slice(0, -2);
   for (const part of subdomainParts) {
     if (!part || part.length === 0) {
       throw new Error(`Invalid domain: ${domain} (empty subdomain part)`);
@@ -107,7 +108,7 @@ function validateConfig(config) {
   // Validate domain names
   if (config.mappings) {
     Object.keys(config.mappings).forEach(domain => {
-      // Validate .nextium TLD
+      // Validate .nextium.local TLD
       validateNextiumDomain(domain);
       
       // Additional security checks
@@ -167,12 +168,12 @@ function saveConfig(config) {
 
 /**
  * Add a new URL mapping
- * @param {string} domain - Domain name (must end with .nextium)
+ * @param {string} domain - Domain name (must end with .nextium.local)
  * @param {number} port - Port number
  * @returns {boolean} Success status
  */
 function addMapping(domain, port) {
-  // Validate .nextium domain
+  // Validate .nextium.local domain
   validateNextiumDomain(domain);
   
   const config = loadConfig();

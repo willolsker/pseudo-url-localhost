@@ -94,9 +94,13 @@ function addToHosts(domains) {
     
     // Add our entries
     content += '\n' + MARKER_START + '\n';
-    domains.forEach(domain => {
-      content += `127.0.0.1 ${domain}\n`;
-    });
+    
+    // Add wildcard entry for .nextium.local domains
+    // All domains should be .nextium.local (validated elsewhere)
+    if (domains.length > 0) {
+      content += `127.0.0.1 *.nextium.local\n`;
+    }
+    
     content += MARKER_END + '\n';
     
     writeHostsFile(content);

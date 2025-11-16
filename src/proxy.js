@@ -259,7 +259,10 @@ function createRequestHandler(proxy, protocol) {
     const hostname = req.headers.host ? req.headers.host.split(":")[0] : "";
     const mappings = getAllMappings();
 
-    if (hostname && (hostname.endsWith(".nextium") || mappings[hostname])) {
+    if (
+      hostname &&
+      (hostname.endsWith(".nextium.local") || mappings[hostname])
+    ) {
       // Check rate limit
       if (!checkRateLimit(hostname)) {
         res.writeHead(429, { "Content-Type": "text/html" });
